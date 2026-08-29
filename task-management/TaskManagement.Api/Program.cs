@@ -25,4 +25,27 @@ app.MapGet("/api/tasks/{id:int}", (int id) =>
     };
 });
 
+app.MapGet("/api/tasks", (int page, int limit) =>
+{
+    return new
+    {
+        Page = page,
+        Limit = limit,
+        Message = $"Showing page {page} with limit {limit}"
+    };
+});
+
+app.MapPost("/api/tasks", (CreateTaskRequest request) =>
+{
+    return new
+    {
+        Id = 1,
+        request.Title,
+        request.Description,
+        IsCompleted = false
+    };
+});
+
 app.Run();
+
+record CreateTaskRequest(string Title, string Description);

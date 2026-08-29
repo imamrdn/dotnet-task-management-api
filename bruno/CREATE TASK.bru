@@ -1,0 +1,23 @@
+meta {
+  name: CREATE TASK
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/tasks
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+body:json {
+  {
+    "title": "Belajar .NET",
+    "description": "Latihan request body"
+  }
+}

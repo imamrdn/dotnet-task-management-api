@@ -1,5 +1,23 @@
 @TaskManagement.Api_HostAddress = http://localhost:5298
 @taskId = 10
+@page = 1
+@limit = 10
 
 GET {{TaskManagement.Api_HostAddress}}/api/tasks/{{taskId}}
 Accept: application/json
+
+###
+
+GET {{TaskManagement.Api_HostAddress}}/api/tasks?page={{page}}&limit={{limit}}
+Accept: application/json
+
+###
+
+POST {{TaskManagement.Api_HostAddress}}/api/tasks
+Content-Type: application/json
+Accept: application/json
+
+{
+  "title": "Belajar .NET",
+  "description": "Latihan request body"
+}

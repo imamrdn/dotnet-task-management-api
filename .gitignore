@@ -7,7 +7,7 @@
 .env
 
 # Local learning notes
-docs/
+/docs/
 
 # User-specific files
 *.rsuser

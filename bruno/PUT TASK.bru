@@ -1,0 +1,24 @@
+meta {
+  name: PUT TASK
+  type: http
+  seq: 6
+}
+
+put {
+  url: {{baseUrl}}/api/tasks/{{taskId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+body:json {
+  {
+    "title": "Belajar .NET Updated",
+    "description": "Latihan update task",
+    "isCompleted": true
+  }
+}

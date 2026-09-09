@@ -67,6 +67,16 @@ app.MapPost("/api/tasks", (CreateTaskRequest request) =>
     return Results.Created($"/api/tasks/{task.Id}", task);
 });
 
+app.MapDelete("/api/tasks/{id:int}", (int id) =>
+{
+    if (id <= 0)
+    {
+        return Results.NotFound();
+    }
+
+    return Results.NoContent();
+});
+
 app.Run();
 
 record CreateTaskRequest(string Title, string Description);

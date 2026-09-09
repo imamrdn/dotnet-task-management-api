@@ -1,0 +1,15 @@
+meta {
+  name: DELETE TASK
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{baseUrl}}/api/tasks/{{taskId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+}

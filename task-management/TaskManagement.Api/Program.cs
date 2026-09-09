@@ -34,12 +34,24 @@ app.MapGet("/api/tasks/{id:int}", (int id) =>
 
 app.MapGet("/api/tasks", (int page, int limit) =>
 {
-    return new
+    if (page <= 0 )
+    {
+        return Results.BadRequest("Page must be greater than 0");
+    }
+
+    if (limit <= 0)
+    {
+        return Results.BadRequest("Limit must be greater than 0");
+    }
+
+    var result = new
     {
         Page = page,
         Limit = limit,
         Message = $"Showing page {page} with limit {limit}"
     };
+
+    return Results.Ok(result);
 });
 
 app.MapPost("/api/tasks", (CreateTaskRequest request) =>

@@ -16,13 +16,20 @@ app.UseHttpsRedirection();
 
 app.MapGet("/api/tasks/{id:int}", (int id) =>
 {
-    return new
+    if (id <= 0)
+    {
+        return Results.NotFound();
+    }
+
+    var task = new
     {
         Id = id,
         Title = $"Task {id}",
         Description = $"This is task {id}",
         IsCompleted = false
     };
+
+    return Results.Ok(task);
 });
 
 app.MapGet("/api/tasks", (int page, int limit) =>
@@ -34,17 +41,6 @@ app.MapGet("/api/tasks", (int page, int limit) =>
         Message = $"Showing page {page} with limit {limit}"
     };
 });
-
-// app.MapPost("/api/tasks", (CreateTaskRequest request) =>
-// {
-//     return new
-//     {
-//         Id = 1,
-//         request.Title,
-//         request.Description,
-//         IsCompleted = false
-//     };
-// });
 
 app.MapPost("/api/tasks", (CreateTaskRequest request) =>
 {

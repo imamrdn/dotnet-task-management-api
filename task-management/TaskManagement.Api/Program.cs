@@ -35,15 +35,28 @@ app.MapGet("/api/tasks", (int page, int limit) =>
     };
 });
 
+// app.MapPost("/api/tasks", (CreateTaskRequest request) =>
+// {
+//     return new
+//     {
+//         Id = 1,
+//         request.Title,
+//         request.Description,
+//         IsCompleted = false
+//     };
+// });
+
 app.MapPost("/api/tasks", (CreateTaskRequest request) =>
 {
-    return new
+    var task = new
     {
         Id = 1,
         request.Title,
         request.Description,
         IsCompleted = false
     };
+
+    return Results.Created($"/api/tasks/{task.Id}", task);
 });
 
 app.Run();

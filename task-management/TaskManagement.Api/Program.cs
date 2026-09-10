@@ -17,11 +17,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-var tasks = new List<TaskItem>();
-
 var taskEndpoints = app.MapGroup("/api/tasks");
 
-taskEndpoints.MapGet("", (int page, int limit) =>
+taskEndpoints.MapGet("", async (int page, int limit, AppDbContext db) =>
 {
     if (page <= 0)
     {
@@ -33,17 +31,19 @@ taskEndpoints.MapGet("", (int page, int limit) =>
         return Results.BadRequest("Limit must be greater than 0");
     }
 
-    return Results.Ok(tasks);
+    var taskItems = await db.Tasks.ToListAsync();
+
+    return Results.Ok(taskItems);
 });
 
-taskEndpoints.MapGet("/{id:int}", (int id) =>
+taskEndpoints.MapGet("/{id:int}", async (int id, AppDbContext db) =>
 {
     if (id <= 0)
     {
         return Results.NotFound();
     }
 
-    var task = tasks.FirstOrDefault(task => task.Id == id);
+    var task = await db.Tasks.FirstOrDefaultAsync(task => task.Id == id);
 
     if (task is null)
     {
@@ -53,29 +53,29 @@ taskEndpoints.MapGet("/{id:int}", (int id) =>
     return Results.Ok(task);
 });
 
-taskEndpoints.MapPost("", (CreateTaskRequest request) =>
+taskEndpoints.MapPost("", async (CreateTaskRequest request, AppDbContext db) =>
 {
     var task = new TaskItem
     {
-        Id = tasks.Count + 1,
         Title = request.Title,
         Description = request.Description,
         IsCompleted = false
     };
 
-    tasks.Add(task);
+    db.Tasks.Add(task);
+    await db.SaveChangesAsync();
 
     return Results.Created($"/api/tasks/{task.Id}", task);
 });
 
-taskEndpoints.MapPut("/{id:int}", (int id, UpdateTaskRequest request) =>
+taskEndpoints.MapPut("/{id:int}", async (int id, UpdateTaskRequest request, AppDbContext db) =>
 {
     if (id <= 0)
     {
         return Results.NotFound();
     }
 
-    var task = tasks.FirstOrDefault(task => task.Id == id);
+    var task = await db.Tasks.FirstOrDefaultAsync(task => task.Id == id);
 
     if (task is null)
     {
@@ -86,24 +86,26 @@ taskEndpoints.MapPut("/{id:int}", (int id, UpdateTaskRequest request) =>
     task.Description = request.Description;
     task.IsCompleted = request.IsCompleted;
 
+    await db.SaveChangesAsync();
     return Results.Ok(task);
 });
 
-taskEndpoints.MapDelete("/{id:int}", (int id) =>
+taskEndpoints.MapDelete("/{id:int}", async (int id, AppDbContext db) =>
 {
     if (id <= 0)
     {
         return Results.NotFound();
     }
 
-    var task = tasks.FirstOrDefault(task => task.Id == id);
+    var task = await db.Tasks.FirstOrDefaultAsync(task => task.Id == id);
 
     if (task is null)
     {
         return Results.NotFound();
     }
 
-    tasks.Remove(task);
+    db.Tasks.Remove(task);
+    await db.SaveChangesAsync();
 
     return Results.NoContent();
 });

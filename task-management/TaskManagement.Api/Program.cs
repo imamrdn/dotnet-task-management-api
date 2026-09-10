@@ -1,9 +1,15 @@
+using Microsoft.EntityFrameworkCore;
+using TaskManagement.Api.Data;
+using TaskManagement.Api.Models;
+
 var builder = WebApplication.CreateBuilder(args);
+
 builder.Services.AddOpenApi();
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -13,8 +19,24 @@ app.UseHttpsRedirection();
 
 var tasks = new List<TaskItem>();
 
+var taskEndpoints = app.MapGroup("/api/tasks");
 
-app.MapGet("/api/tasks/{id:int}", (int id) =>
+taskEndpoints.MapGet("", (int page, int limit) =>
+{
+    if (page <= 0)
+    {
+        return Results.BadRequest("Page must be greater than 0");
+    }
+
+    if (limit <= 0)
+    {
+        return Results.BadRequest("Limit must be greater than 0");
+    }
+
+    return Results.Ok(tasks);
+});
+
+taskEndpoints.MapGet("/{id:int}", (int id) =>
 {
     if (id <= 0)
     {
@@ -31,22 +53,7 @@ app.MapGet("/api/tasks/{id:int}", (int id) =>
     return Results.Ok(task);
 });
 
-app.MapGet("/api/tasks", (int page, int limit) =>
-{
-    if (page <= 0)
-    {
-        return Results.BadRequest("Page must be greater than 0");
-    }
-
-    if (limit <= 0)
-    {
-        return Results.BadRequest("Limit must be greater than 0");
-    }
-
-    return Results.Ok(tasks);
-});
-
-app.MapPost("/api/tasks", (CreateTaskRequest request) =>
+taskEndpoints.MapPost("", (CreateTaskRequest request) =>
 {
     var task = new TaskItem
     {
@@ -61,7 +68,7 @@ app.MapPost("/api/tasks", (CreateTaskRequest request) =>
     return Results.Created($"/api/tasks/{task.Id}", task);
 });
 
-app.MapPut("/api/tasks/{id:int}", (int id, UpdateTaskRequest request) =>
+taskEndpoints.MapPut("/{id:int}", (int id, UpdateTaskRequest request) =>
 {
     if (id <= 0)
     {
@@ -82,7 +89,7 @@ app.MapPut("/api/tasks/{id:int}", (int id, UpdateTaskRequest request) =>
     return Results.Ok(task);
 });
 
-app.MapDelete("/api/tasks/{id:int}", (int id) =>
+taskEndpoints.MapDelete("/{id:int}", (int id) =>
 {
     if (id <= 0)
     {
@@ -105,12 +112,3 @@ app.Run();
 
 record CreateTaskRequest(string Title, string Description);
 record UpdateTaskRequest(string Title, string Description, bool IsCompleted);
-
-
-class TaskItem
-{
-    public int Id { get; set; }
-    public string Title { get; set; } = "";
-    public string Description { get; set; } = "";
-    public bool IsCompleted { get; set; }
-}

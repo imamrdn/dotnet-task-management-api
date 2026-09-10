@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TaskManagement.Api.Data;
+using TaskManagement.Api.DTOs;
 using TaskManagement.Api.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -31,7 +32,14 @@ taskEndpoints.MapGet("", async (int page, int limit, AppDbContext db) =>
         return Results.BadRequest("Limit must be greater than 0");
     }
 
-    var taskItems = await db.Tasks.ToListAsync();
+    var taskItems = await db.Tasks
+        .Select(task => new TaskResponse(
+            task.Id,
+            task.Title,
+            task.Description,
+            task.IsCompleted
+        ))
+        .ToListAsync();
 
     return Results.Ok(taskItems);
 });
@@ -50,7 +58,14 @@ taskEndpoints.MapGet("/{id:int}", async (int id, AppDbContext db) =>
         return Results.NotFound();
     }
 
-    return Results.Ok(task);
+    var response = new TaskResponse(
+        task.Id,
+        task.Title,
+        task.Description,
+        task.IsCompleted
+    );
+
+    return Results.Ok(response);
 });
 
 taskEndpoints.MapPost("", async (CreateTaskRequest request, AppDbContext db) =>
@@ -65,7 +80,14 @@ taskEndpoints.MapPost("", async (CreateTaskRequest request, AppDbContext db) =>
     db.Tasks.Add(task);
     await db.SaveChangesAsync();
 
-    return Results.Created($"/api/tasks/{task.Id}", task);
+    var response = new TaskResponse(
+        task.Id,
+        task.Title,
+        task.Description,
+        task.IsCompleted
+    );
+
+    return Results.Created($"/api/tasks/{task.Id}", response);
 });
 
 taskEndpoints.MapPut("/{id:int}", async (int id, UpdateTaskRequest request, AppDbContext db) =>
@@ -87,7 +109,15 @@ taskEndpoints.MapPut("/{id:int}", async (int id, UpdateTaskRequest request, AppD
     task.IsCompleted = request.IsCompleted;
 
     await db.SaveChangesAsync();
-    return Results.Ok(task);
+
+    var response = new TaskResponse(
+        task.Id,
+        task.Title,
+        task.Description,
+        task.IsCompleted
+    );
+
+    return Results.Ok(response);
 });
 
 taskEndpoints.MapDelete("/{id:int}", async (int id, AppDbContext db) =>
@@ -111,6 +141,3 @@ taskEndpoints.MapDelete("/{id:int}", async (int id, AppDbContext db) =>
 });
 
 app.Run();
-
-record CreateTaskRequest(string Title, string Description);
-record UpdateTaskRequest(string Title, string Description, bool IsCompleted);

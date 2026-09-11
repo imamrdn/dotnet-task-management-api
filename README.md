@@ -21,23 +21,22 @@ Task Management API built with ASP.NET Core, PostgreSQL, and Entity Framework Co
 │   ├── PUT TASK.bru
 │   ├── TASK BY ID.bru
 │   └── TASK LIST.bru
-└── task-management/
-    └── TaskManagement.Api/
-        ├── Controllers/
-        │   └── TasksController.cs
-        ├── DTOs/
-        │   ├── CreateTaskRequest.cs
-        │   ├── TaskResponse.cs
-        │   └── UpdateTaskRequest.cs
-        ├── Data/
-        │   └── AppDbContext.cs
-        ├── Migrations/
-        ├── Models/
-        │   └── TaskItem.cs
-        ├── Services/
-        │   ├── ITaskService.cs
-        │   └── TaskService.cs
-        └── Program.cs
+└── TaskManagement.Api/
+    ├── Controllers/
+    │   └── TasksController.cs
+    ├── DTOs/
+    │   ├── CreateTaskRequest.cs
+    │   ├── TaskResponse.cs
+    │   └── UpdateTaskRequest.cs
+    ├── Data/
+    │   └── AppDbContext.cs
+    ├── Migrations/
+    ├── Models/
+    │   └── TaskItem.cs
+    ├── Services/
+    │   ├── ITaskService.cs
+    │   └── TaskService.cs
+    └── Program.cs
 ```
 
 ## Features
@@ -70,7 +69,7 @@ Create a PostgreSQL database:
 CREATE DATABASE task_management_db;
 ```
 
-Configure the connection string in `task-management/TaskManagement.Api/appsettings.json`:
+Configure the connection string in `TaskManagement.Api/appsettings.json`:
 
 ```json
 {
@@ -83,13 +82,13 @@ Configure the connection string in `task-management/TaskManagement.Api/appsettin
 Apply EF Core migrations:
 
 ```bash
-dotnet ef database update --project task-management/TaskManagement.Api
+dotnet ef database update --project TaskManagement.Api
 ```
 
 Run the API:
 
 ```bash
-dotnet run --project task-management/TaskManagement.Api --launch-profile http
+dotnet run --project TaskManagement.Api --launch-profile http
 ```
 
 Default local URL:

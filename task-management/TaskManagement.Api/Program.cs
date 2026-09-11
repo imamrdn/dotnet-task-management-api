@@ -70,6 +70,12 @@ taskEndpoints.MapGet("/{id:int}", async (int id, AppDbContext db) =>
 
 taskEndpoints.MapPost("", async (CreateTaskRequest request, AppDbContext db) =>
 {
+    var validationResult = ValidateTaskRequest(request.Title, request.Description);
+    if (validationResult is not null)
+    {
+        return validationResult;
+    }
+
     var task = new TaskItem
     {
         Title = request.Title,
@@ -95,6 +101,12 @@ taskEndpoints.MapPut("/{id:int}", async (int id, UpdateTaskRequest request, AppD
     if (id <= 0)
     {
         return Results.NotFound();
+    }
+
+    var validationResult = ValidateTaskRequest(request.Title, request.Description);
+    if (validationResult is not null)
+    {
+        return validationResult;
     }
 
     var task = await db.Tasks.FirstOrDefaultAsync(task => task.Id == id);
@@ -139,5 +151,20 @@ taskEndpoints.MapDelete("/{id:int}", async (int id, AppDbContext db) =>
 
     return Results.NoContent();
 });
+
+static IResult? ValidateTaskRequest(string title, string description)
+{
+    if (string.IsNullOrWhiteSpace(title))
+    {
+        return Results.BadRequest("Title is required");
+    }
+
+    if (string.IsNullOrWhiteSpace(description))
+    {
+        return Results.BadRequest("Description is required");
+    }
+
+    return null;
+}
 
 app.Run();

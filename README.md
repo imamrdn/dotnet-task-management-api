@@ -1,6 +1,6 @@
 # .NET Task Management API
 
-Task Management API built with ASP.NET Core, PostgreSQL, and Entity Framework Core. This project is used as a step-by-step backend learning project, starting from basic HTTP endpoints and growing into a more structured API with DTOs, validation, service layer, and database persistence.
+Task Management API built with ASP.NET Core, PostgreSQL, Entity Framework Core, and JWT authentication. This project is used as a step-by-step backend learning project, starting from basic HTTP endpoints and growing into a more structured API with DTOs, validation, service layer, database persistence, and protected endpoints.
 
 ## Tech Stack
 
@@ -9,6 +9,7 @@ Task Management API built with ASP.NET Core, PostgreSQL, and Entity Framework Co
 - PostgreSQL
 - Entity Framework Core
 - Npgsql EF Core provider
+- JWT Bearer authentication
 - Bruno for API request collection
 
 ## Project Structure
@@ -18,21 +19,28 @@ Task Management API built with ASP.NET Core, PostgreSQL, and Entity Framework Co
 ├── bruno/
 │   ├── CREATE TASK.bru
 │   ├── DELETE TASK.bru
+│   ├── LOGIN.bru
 │   ├── PUT TASK.bru
+│   ├── REGISTER.bru
 │   ├── TASK BY ID.bru
 │   └── TASK LIST.bru
 └── TaskManagement.Api/
     ├── Controllers/
+    │   ├── AuthController.cs
     │   └── TasksController.cs
     ├── DTOs/
+    │   ├── AuthResponse.cs
     │   ├── CreateTaskRequest.cs
+    │   ├── LoginRequest.cs
+    │   ├── RegisterRequest.cs
     │   ├── TaskResponse.cs
     │   └── UpdateTaskRequest.cs
     ├── Data/
     │   └── AppDbContext.cs
     ├── Migrations/
     ├── Models/
-    │   └── TaskItem.cs
+    │   ├── TaskItem.cs
+    │   └── User.cs
     ├── Services/
     │   ├── ITaskService.cs
     │   └── TaskService.cs
@@ -46,6 +54,12 @@ Task Management API built with ASP.NET Core, PostgreSQL, and Entity Framework Co
 - Get task by id
 - Update task
 - Delete task
+- Register user
+- Login user
+- Password hashing
+- JWT token generation
+- JWT-protected task endpoints
+- Basic pagination for task list
 - Manual request validation
 - DTO-based request and response models
 - Controller and service layer separation
@@ -54,11 +68,14 @@ Task Management API built with ASP.NET Core, PostgreSQL, and Entity Framework Co
 ## API Endpoints
 
 ```text
-GET     /api/tasks?page=1&limit=10
-GET     /api/tasks/{id}
-POST    /api/tasks
-PUT     /api/tasks/{id}
-DELETE  /api/tasks/{id}
+POST    /api/auth/register
+POST    /api/auth/login
+
+GET     /api/tasks?page=1&limit=10   (requires Bearer token)
+GET     /api/tasks/{id}              (requires Bearer token)
+POST    /api/tasks                   (requires Bearer token)
+PUT     /api/tasks/{id}              (requires Bearer token)
+DELETE  /api/tasks/{id}              (requires Bearer token)
 ```
 
 ## Local Setup
@@ -75,6 +92,11 @@ Configure the connection string in `TaskManagement.Api/appsettings.json`:
 {
   "ConnectionStrings": {
     "DefaultConnection": "Host=localhost;Port=5432;Database=task_management_db;Username=YOUR_USERNAME;Password=YOUR_PASSWORD"
+  },
+  "Jwt": {
+    "Key": "super-secret-key-minimal-32-characters",
+    "Issuer": "TaskManagement.Api",
+    "Audience": "TaskManagement.Api"
   }
 }
 ```
@@ -112,7 +134,10 @@ baseUrl: http://localhost:5298
 taskId: 1
 page: 1
 limit: 10
+authToken:
 ```
+
+Run `LOGIN` to receive a JWT. The login request stores the response token into `authToken`, and the task requests use Bruno Bearer auth with that variable.
 
 ## Learning Progress
 
@@ -123,7 +148,9 @@ Completed so far:
 - In-memory CRUD
 - PostgreSQL and EF Core integration
 - DTOs, validation, controller, service layer, and dependency injection
+- Authentication with register, login, password hashing, and JWT
+- Protected task endpoints with `[Authorize]`
 
 Next phase:
 
-- Authentication with register, login, and JWT
+- User and task relationship so each user can manage only their own tasks

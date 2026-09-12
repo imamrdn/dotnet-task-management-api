@@ -14,10 +14,15 @@ public class TaskService : ITaskService
         _dbContext = dbContext;
     }
 
-    public async Task<List<TaskResponse>> GetTasksAsync(int userId, int page, int limit)
+    public async Task<PaginatedResponse<TaskResponse>> GetTasksAsync(int userId, int page, int limit)
     {
-        return await _dbContext.Tasks
-            .Where(task => task.UserId == userId)
+        var query = _dbContext.Tasks
+            .Where(task => task.UserId == userId);
+
+        var totalItems = await query.CountAsync();
+        var totalPages = (int)Math.Ceiling(totalItems / (double)limit);
+
+        var items = await query
             .OrderBy(task => task.Id)
             .Skip((page - 1) * limit)
             .Take(limit)
@@ -28,6 +33,14 @@ public class TaskService : ITaskService
                 task.IsCompleted
             ))
             .ToListAsync();
+
+        return new PaginatedResponse<TaskResponse>(
+            items,
+            page,
+            limit,
+            totalItems,
+            totalPages
+        );
     }
 
     public async Task<TaskResponse?> GetTaskByIdAsync(int userId, int id)

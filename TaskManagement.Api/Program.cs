@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TaskManagement.Api.Data;
+using TaskManagement.Api.Data.Seeders;
 using TaskManagement.Api.Services;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -40,17 +41,27 @@ builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<DatabaseSeeder>();
+builder.Services.AddScoped<UserSeeder>();
+builder.Services.AddScoped<TaskSeeder>();
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
-{
-    var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
-    await seeder.SeedAsync();
-}
-
 if (app.Environment.IsDevelopment())
 {
+    using var scope = app.Services.CreateScope();
+
+    var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
+    var refreshOnStartup = app.Configuration.GetValue<bool>("Database:RefreshOnStartup");
+
+    if (refreshOnStartup)
+    {
+        await seeder.RefreshAsync();
+    }
+    else
+    {
+        await seeder.SeedAsync();
+    }
+
     app.MapOpenApi();
 }
 

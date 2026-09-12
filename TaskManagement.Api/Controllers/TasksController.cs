@@ -1,8 +1,8 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TaskManagement.Api.DTOs;
 using TaskManagement.Api.Services;
-using System.Security.Claims;
-using Microsoft.AspNetCore.Authorization;
 
 namespace TaskManagement.Api.Controllers;
 
@@ -62,12 +62,6 @@ public class TasksController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateTask(CreateTaskRequest request)
     {
-        var validationResult = ValidateTaskRequest(request.Title, request.Description);
-        if (validationResult is not null)
-        {
-            return validationResult;
-        }
-
         var userId = GetUserIdFromClaims();
         var response = await _taskService.CreateTaskAsync(userId, request);
 
@@ -81,12 +75,6 @@ public class TasksController : ControllerBase
         if (id <= 0)
         {
             return NotFound(ApiResponse<object>.Error("Task not found"));
-        }
-
-        var validationResult = ValidateTaskRequest(request.Title, request.Description);
-        if (validationResult is not null)
-        {
-            return validationResult;
         }
 
         var userId = GetUserIdFromClaims();
@@ -109,21 +97,6 @@ public class TasksController : ControllerBase
         var isDeleted = await _taskService.DeleteTaskAsync(userId, id);
 
         return isDeleted ? NoContent() : NotFound(ApiResponse<object>.Error("Task not found"));
-    }
-
-    private IActionResult? ValidateTaskRequest(string title, string description)
-    {
-        if (string.IsNullOrWhiteSpace(title))
-        {
-            return BadRequest(ApiResponse<object>.Error("Title is required"));
-        }
-
-        if (string.IsNullOrWhiteSpace(description))
-        {
-            return BadRequest(ApiResponse<object>.Error("Description is required"));
-        }
-
-        return null;
     }
 
     private int GetUserIdFromClaims()

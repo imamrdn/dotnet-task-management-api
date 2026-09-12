@@ -49,18 +49,6 @@ public class TasksControllerTests
         Assert.IsType<NotFoundObjectResult>(await controller.GetTaskById(2));
     }
 
-    [Theory]
-    [InlineData("", "Description", "Title is required")]
-    [InlineData("Title", "", "Description is required")]
-    public async Task CreateTask_InvalidRequest_ReturnsBadRequest(
-        string title, string description, string message)
-    {
-        var result = await CreateController().CreateTask(new CreateTaskRequest(title, description));
-
-        Assert.Equal(message, Assert.IsType<ApiResponse<object>>(
-            Assert.IsType<BadRequestObjectResult>(result).Value).Message);
-    }
-
     [Fact]
     public async Task CreateTask_ValidRequest_ReturnsCreated()
     {
@@ -75,7 +63,7 @@ public class TasksControllerTests
     }
 
     [Fact]
-    public async Task UpdateTask_CoversValidationNotFoundAndSuccess()
+    public async Task UpdateTask_CoversNotFoundAndSuccess()
     {
         var controller = CreateController();
         var validRequest = new UpdateTaskRequest("Title", "Description", true);
@@ -83,10 +71,6 @@ public class TasksControllerTests
         _service.Setup(service => service.UpdateTaskAsync(7, 1, validRequest)).ReturnsAsync(response);
 
         Assert.IsType<NotFoundObjectResult>(await controller.UpdateTask(0, validRequest));
-        Assert.IsType<BadRequestObjectResult>(await controller.UpdateTask(1,
-            new UpdateTaskRequest("", "Description", false)));
-        Assert.IsType<BadRequestObjectResult>(await controller.UpdateTask(1,
-            new UpdateTaskRequest("Title", "", false)));
         Assert.IsType<OkObjectResult>(await controller.UpdateTask(1, validRequest));
 
         _service.Setup(service => service.UpdateTaskAsync(7, 2, validRequest)).ReturnsAsync((TaskResponse?)null);

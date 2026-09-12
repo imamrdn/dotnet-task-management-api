@@ -44,6 +44,70 @@ public class ApiIntegrationTests : IClassFixture<PostgresWebApplicationFactory>
         Assert.False((await badLogin.Content.ReadFromJsonAsync<ApiResponse<object>>())!.Success);
     }
 
+    [Theory]
+    [InlineData("", "Description", "Title is required")]
+    [InlineData("Title", "", "Description is required")]
+    public async Task CreateTask_InvalidFields_ReturnsValidationError(
+        string title, string description, string expectedMessage)
+    {
+        using var client = await CreateAuthenticatedClientAsync("user@mail.com");
+
+        var response = await client.PostAsJsonAsync(
+            "/api/tasks", new CreateTaskRequest(title, description));
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<object>>();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.False(body!.Success);
+        Assert.Equal(expectedMessage, body.Message);
+    }
+
+    [Fact]
+    public async Task CreateTask_MissingTitle_ReturnsValidationError()
+    {
+        using var client = await CreateAuthenticatedClientAsync("user@mail.com");
+
+        var response = await client.PostAsJsonAsync(
+            "/api/tasks", new { description = "Description" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("Title is required",
+            (await response.Content.ReadFromJsonAsync<ApiResponse<object>>())!.Message);
+    }
+
+    [Fact]
+    public async Task UpdateTask_EmptyDescription_ReturnsValidationError()
+    {
+        using var client = await CreateAuthenticatedClientAsync("user@mail.com");
+
+        var response = await client.PutAsJsonAsync(
+            "/api/tasks/1", new UpdateTaskRequest("Title", "", false));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("Description is required",
+            (await response.Content.ReadFromJsonAsync<ApiResponse<object>>())!.Message);
+    }
+
+    [Fact]
+    public async Task AuthAndUser_InvalidEmail_ReturnValidationError()
+    {
+        using var publicClient = _factory.CreateClient();
+        using var adminClient = await CreateAuthenticatedClientAsync("admin@mail.com");
+
+        var register = await publicClient.PostAsJsonAsync(
+            "/api/auth/register", new RegisterRequest("User", "invalid", "secret123"));
+        var login = await publicClient.PostAsJsonAsync(
+            "/api/auth/login", new LoginRequest("invalid", "secret123"));
+        var createUser = await adminClient.PostAsJsonAsync(
+            "/api/users", new CreateUserRequest("User", "invalid", "secret123"));
+
+        foreach (var response in new[] { register, login, createUser })
+        {
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.Equal("Email is invalid",
+                (await response.Content.ReadFromJsonAsync<ApiResponse<object>>())!.Message);
+        }
+    }
+
     [Fact]
     public async Task MissingTask_ReturnsWrappedNotFound()
     {

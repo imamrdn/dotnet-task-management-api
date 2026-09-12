@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using TaskManagement.Api.DTOs;
 using TaskManagement.Api.Services;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 
 namespace TaskManagement.Api.Controllers;
@@ -30,7 +31,8 @@ public class TasksController : ControllerBase
             return BadRequest("Limit must be greater than 0");
         }
 
-        var taskItems = await _taskService.GetTasksAsync(page, limit);
+        var userId = GetUserIdFromClaims();
+        var taskItems = await _taskService.GetTasksAsync(userId, page, limit);
 
         return Ok(taskItems);
     }
@@ -43,7 +45,8 @@ public class TasksController : ControllerBase
             return NotFound();
         }
 
-        var response = await _taskService.GetTaskByIdAsync(id);
+        var userId = GetUserIdFromClaims();
+        var response = await _taskService.GetTaskByIdAsync(userId, id);
 
         return response is null ? NotFound() : Ok(response);
     }
@@ -57,7 +60,8 @@ public class TasksController : ControllerBase
             return validationResult;
         }
 
-        var response = await _taskService.CreateTaskAsync(request);
+        var userId = GetUserIdFromClaims();
+        var response = await _taskService.CreateTaskAsync(userId, request);
 
         return Created($"/api/tasks/{response.Id}", response);
     }
@@ -76,7 +80,8 @@ public class TasksController : ControllerBase
             return validationResult;
         }
 
-        var response = await _taskService.UpdateTaskAsync(id, request);
+        var userId = GetUserIdFromClaims();
+        var response = await _taskService.UpdateTaskAsync(userId, id, request);
 
         return response is null ? NotFound() : Ok(response);
     }
@@ -89,7 +94,8 @@ public class TasksController : ControllerBase
             return NotFound();
         }
 
-        var isDeleted = await _taskService.DeleteTaskAsync(id);
+        var userId = GetUserIdFromClaims();
+        var isDeleted = await _taskService.DeleteTaskAsync(userId, id);
 
         return isDeleted ? NoContent() : NotFound();
     }
@@ -107,5 +113,16 @@ public class TasksController : ControllerBase
         }
 
         return null;
+    }
+
+    private int GetUserIdFromClaims()
+    {
+        var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
+        if (userIdClaim == null)
+        {
+            throw new UnauthorizedAccessException("User ID claim not found");
+        }
+
+        return int.Parse(userIdClaim.Value);
     }
 }

@@ -14,9 +14,10 @@ public class TaskService : ITaskService
         _dbContext = dbContext;
     }
 
-    public async Task<List<TaskResponse>> GetTasksAsync(int page, int limit)
+    public async Task<List<TaskResponse>> GetTasksAsync(int userId, int page, int limit)
     {
         return await _dbContext.Tasks
+            .Where(task => task.UserId == userId)
             .OrderBy(task => task.Id)
             .Skip((page - 1) * limit)
             .Take(limit)
@@ -29,9 +30,9 @@ public class TaskService : ITaskService
             .ToListAsync();
     }
 
-    public async Task<TaskResponse?> GetTaskByIdAsync(int id)
+    public async Task<TaskResponse?> GetTaskByIdAsync(int userId, int id)
     {
-        var task = await _dbContext.Tasks.FirstOrDefaultAsync(task => task.Id == id);
+        var task = await _dbContext.Tasks.FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId);
         if (task is null)
         {
             return null;
@@ -45,13 +46,14 @@ public class TaskService : ITaskService
         );
     }
     
-    public async Task<TaskResponse> CreateTaskAsync(CreateTaskRequest request)
+    public async Task<TaskResponse> CreateTaskAsync(int userId, CreateTaskRequest request)
     {
         var task = new TaskItem
         {
             Title = request.Title,
             Description = request.Description,
-            IsCompleted = false
+            IsCompleted = false,
+            UserId = userId
         };
 
         _dbContext.Tasks.Add(task);
@@ -65,9 +67,9 @@ public class TaskService : ITaskService
         );
     }
 
-    public async Task<TaskResponse?> UpdateTaskAsync(int id, UpdateTaskRequest request)
+    public async Task<TaskResponse?> UpdateTaskAsync(int userId, int id, UpdateTaskRequest request)
     {
-        var task = await _dbContext.Tasks.FirstOrDefaultAsync(task => task.Id == id);
+        var task = await _dbContext.Tasks.FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId);
         if (task is null)
         {
             return null;
@@ -87,9 +89,9 @@ public class TaskService : ITaskService
         );
     }
 
-    public async Task<bool> DeleteTaskAsync(int id)
+    public async Task<bool> DeleteTaskAsync(int userId, int id)
     {
-        var task = await _dbContext.Tasks.FirstOrDefaultAsync(task => task.Id == id);
+        var task = await _dbContext.Tasks.FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId);
         if (task is null)
         {
             return false;

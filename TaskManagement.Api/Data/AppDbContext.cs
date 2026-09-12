@@ -16,7 +16,10 @@ public class AppDbContext : DbContext
     {
         modelBuilder.Entity<TaskItem>().ToTable("tasks");
         modelBuilder.Entity<User>().ToTable("users");
+
+        modelBuilder.Entity<TaskItem>()
+            .HasOne(t => t.User)
+            .WithMany(u => u.Tasks)
+            .HasForeignKey(t => t.UserId);
     }
-
-
 }

@@ -20,7 +20,7 @@ public class TasksControllerTests
         var result = await CreateController().GetTasks(page, limit, null, null, null, null);
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
-        Assert.Equal(message, badRequest.Value);
+        Assert.Equal(message, Assert.IsType<ApiResponse<object>>(badRequest.Value).Message);
     }
 
     [Fact]
@@ -32,7 +32,8 @@ public class TasksControllerTests
 
         var result = await CreateController().GetTasks(1, 10, "term", true, "title", "desc");
 
-        Assert.Same(response, Assert.IsType<OkObjectResult>(result).Value);
+        Assert.Same(response, Assert.IsType<ApiResponse<PaginatedResponse<TaskResponse>>>(
+            Assert.IsType<OkObjectResult>(result).Value).Data);
     }
 
     [Fact]
@@ -43,9 +44,9 @@ public class TasksControllerTests
         _service.Setup(service => service.GetTaskByIdAsync(7, 2)).ReturnsAsync((TaskResponse?)null);
         var controller = CreateController();
 
-        Assert.IsType<NotFoundResult>(await controller.GetTaskById(0));
+        Assert.IsType<NotFoundObjectResult>(await controller.GetTaskById(0));
         Assert.IsType<OkObjectResult>(await controller.GetTaskById(1));
-        Assert.IsType<NotFoundResult>(await controller.GetTaskById(2));
+        Assert.IsType<NotFoundObjectResult>(await controller.GetTaskById(2));
     }
 
     [Theory]
@@ -56,7 +57,8 @@ public class TasksControllerTests
     {
         var result = await CreateController().CreateTask(new CreateTaskRequest(title, description));
 
-        Assert.Equal(message, Assert.IsType<BadRequestObjectResult>(result).Value);
+        Assert.Equal(message, Assert.IsType<ApiResponse<object>>(
+            Assert.IsType<BadRequestObjectResult>(result).Value).Message);
     }
 
     [Fact]
@@ -69,7 +71,7 @@ public class TasksControllerTests
         var result = Assert.IsType<CreatedResult>(await CreateController().CreateTask(request));
 
         Assert.Equal("/api/tasks/3", result.Location);
-        Assert.Same(response, result.Value);
+        Assert.Same(response, Assert.IsType<ApiResponse<TaskResponse>>(result.Value).Data);
     }
 
     [Fact]
@@ -80,7 +82,7 @@ public class TasksControllerTests
         var response = new TaskResponse(1, "Title", "Description", true);
         _service.Setup(service => service.UpdateTaskAsync(7, 1, validRequest)).ReturnsAsync(response);
 
-        Assert.IsType<NotFoundResult>(await controller.UpdateTask(0, validRequest));
+        Assert.IsType<NotFoundObjectResult>(await controller.UpdateTask(0, validRequest));
         Assert.IsType<BadRequestObjectResult>(await controller.UpdateTask(1,
             new UpdateTaskRequest("", "Description", false)));
         Assert.IsType<BadRequestObjectResult>(await controller.UpdateTask(1,
@@ -88,7 +90,7 @@ public class TasksControllerTests
         Assert.IsType<OkObjectResult>(await controller.UpdateTask(1, validRequest));
 
         _service.Setup(service => service.UpdateTaskAsync(7, 2, validRequest)).ReturnsAsync((TaskResponse?)null);
-        Assert.IsType<NotFoundResult>(await controller.UpdateTask(2, validRequest));
+        Assert.IsType<NotFoundObjectResult>(await controller.UpdateTask(2, validRequest));
     }
 
     [Fact]
@@ -98,9 +100,9 @@ public class TasksControllerTests
         _service.Setup(service => service.DeleteTaskAsync(7, 2)).ReturnsAsync(false);
         var controller = CreateController();
 
-        Assert.IsType<NotFoundResult>(await controller.DeleteTask(0));
+        Assert.IsType<NotFoundObjectResult>(await controller.DeleteTask(0));
         Assert.IsType<NoContentResult>(await controller.DeleteTask(1));
-        Assert.IsType<NotFoundResult>(await controller.DeleteTask(2));
+        Assert.IsType<NotFoundObjectResult>(await controller.DeleteTask(2));
     }
 
     [Fact]

@@ -22,7 +22,7 @@ public class UsersController : ControllerBase
     {
         var users = await _userService.GetUsersAsync();
 
-        return Ok(users);
+        return Ok(ApiResponse<List<UserResponse>>.Ok("Users retrieved successfully", users));
     }
 
     [HttpGet("{id:int}")]
@@ -30,31 +30,22 @@ public class UsersController : ControllerBase
     {
         if (id <= 0)
         {
-            return NotFound();
+            return NotFound(ApiResponse<object>.Error("User not found"));
         }
 
         var user = await _userService.GetUserByIdAsync(id);
 
-        return user is null ? NotFound() : Ok(user);
+        return user is null
+            ? NotFound(ApiResponse<object>.Error("User not found"))
+            : Ok(ApiResponse<UserResponse>.Ok("User retrieved successfully", user));
     }
 
     [HttpPost]
     public async Task<IActionResult> CreateUser(CreateUserRequest request)
     {
-        try
-        {
-            var user = await _userService.CreateUserAsync(request);
-
-            return Created($"/api/users/{user.Id}", user);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
+        var user = await _userService.CreateUserAsync(request);
+        return Created($"/api/users/{user.Id}",
+            ApiResponse<UserResponse>.Ok("User created successfully", user));
     }
 
     [HttpPut("{id:int}")]
@@ -62,23 +53,13 @@ public class UsersController : ControllerBase
     {
         if (id <= 0)
         {
-            return NotFound();
+            return NotFound(ApiResponse<object>.Error("User not found"));
         }
 
-        try
-        {
-            var user = await _userService.UpdateUserAsync(id, request);
-
-            return user is null ? NotFound() : Ok(user);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
+        var user = await _userService.UpdateUserAsync(id, request);
+        return user is null
+            ? NotFound(ApiResponse<object>.Error("User not found"))
+            : Ok(ApiResponse<UserResponse>.Ok("User updated successfully", user));
     }
 
     [HttpDelete("{id:int}")]
@@ -86,11 +67,11 @@ public class UsersController : ControllerBase
     {
         if (id <= 0)
         {
-            return NotFound();
+            return NotFound(ApiResponse<object>.Error("User not found"));
         }
 
         var isDeleted = await _userService.DeleteUserAsync(id);
 
-        return isDeleted ? NoContent() : NotFound();
+        return isDeleted ? NoContent() : NotFound(ApiResponse<object>.Error("User not found"));
     }
 }

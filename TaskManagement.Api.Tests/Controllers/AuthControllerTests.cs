@@ -19,21 +19,21 @@ public class AuthControllerTests
     }
 
     [Fact]
-    public async Task Register_ReturnsBadRequestForValidationAndDuplicateEmail()
+    public async Task Register_ThrowsForGlobalHandlerOnValidationAndDuplicateEmail()
     {
         await using var context = TestDbContextFactory.Create();
         var controller = CreateController(context);
 
-        Assert.IsType<BadRequestObjectResult>(await controller.Register(
+        await Assert.ThrowsAsync<ArgumentException>(() => controller.Register(
             new RegisterRequest("", "user@mail.com", "secret123")));
 
         await controller.Register(new RegisterRequest("User", "user@mail.com", "secret123"));
-        Assert.IsType<BadRequestObjectResult>(await controller.Register(
+        await Assert.ThrowsAsync<ArgumentException>(() => controller.Register(
             new RegisterRequest("User", "user@mail.com", "secret123")));
     }
 
     [Fact]
-    public async Task Login_ReturnsOkBadRequestOrUnauthorized()
+    public async Task Login_ReturnsOkOrThrowsForGlobalHandler()
     {
         await using var context = TestDbContextFactory.Create();
         var controller = CreateController(context);
@@ -41,9 +41,9 @@ public class AuthControllerTests
 
         Assert.IsType<OkObjectResult>(await controller.Login(
             new LoginRequest("user@mail.com", "secret123")));
-        Assert.IsType<BadRequestObjectResult>(await controller.Login(
+        await Assert.ThrowsAsync<ArgumentException>(() => controller.Login(
             new LoginRequest("", "secret123")));
-        Assert.IsType<UnauthorizedObjectResult>(await controller.Login(
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => controller.Login(
             new LoginRequest("user@mail.com", "wrong")));
     }
 

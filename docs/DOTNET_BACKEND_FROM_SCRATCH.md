@@ -642,7 +642,7 @@ Tambahkan fitur yang umum pada backend production.
 ### Pagination
 
 ```text
-GET /api/tasks?page=1&pageSize=10
+GET /api/tasks?page=1&limit=10
 ```
 
 Status: ✅ pagination, search, filtering, dan sorting dasar sudah diterapkan pada query task.
@@ -656,13 +656,13 @@ GET /api/tasks?search=belajar
 ### Filter
 
 ```text
-GET /api/tasks?completed=true
+GET /api/tasks?isCompleted=true
 ```
 
 ### Sorting
 
 ```text
-GET /api/tasks?sortBy=createdAt&order=desc
+GET /api/tasks?sortBy=title&sortDirection=desc
 ```
 
 ### Pelajari
@@ -671,12 +671,14 @@ GET /api/tasks?sortBy=createdAt&order=desc
 - [x] Search
 - [x] Filtering
 - [x] Sorting
-- [ ] Global Exception Handling
+- [x] Global Exception Handling
 - [ ] Logging
 - [ ] Validation
 - [ ] Configuration
 - [ ] CORS
 - [ ] Swagger / OpenAPI
+
+Response sukses menggunakan `ApiResponse<T>` dengan `success`, `message`, dan `data`. Error dari validasi, authorization, dan exception menggunakan bentuk yang sama dengan `success: false`. Login mengembalikan token pada `data.token`; DELETE sukses tetap `204 No Content` tanpa body.
 
 ---
 

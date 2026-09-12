@@ -25,7 +25,7 @@ body:json {
 script:post-response {
   const body = res.getBody();
 
-  if (res.getStatus() === 200 && body.token) {
-    bru.setEnvVar("authToken", body.token);
+  if (res.getStatus() === 200 && body.data?.token) {
+    bru.setEnvVar("authToken", body.data.token);
   }
 }

@@ -54,20 +54,20 @@ Unit test memeriksa satu bagian aplikasi secara terisolasi. Controller menggunak
 | Seeders | Membuat admin, user, dan task demo | Passed |
 | Seeders | Tidak menggandakan seed data | Passed |
 
-## Latest Unit Test Result
+## Latest Test Result
 
 Hasil terakhir:
 
 ```text
-Total tests : 59
-Passed      : 59
+Total tests : 66
+Passed      : 66
 Failed      : 0
 Skipped     : 0
 Line        : 100%
-Branch      : 99.01%
+Branch      : 99.10%
 ```
 
-Migration, `Program.cs`, dan source code OpenAPI hasil generator dikecualikan dari unit-test coverage. Bagian tersebut lebih tepat diverifikasi melalui integration test daripada unit test.
+Migration, `Program.cs`, dan source code OpenAPI hasil generator dikecualikan dari laporan coverage. Migration dan alur HTTP tetap diuji melalui integration test; persentase coverage di atas hanya berlaku untuk source code yang dihitung oleh `coverage.runsettings`.
 
 ## Running Unit Tests
 
@@ -109,6 +109,7 @@ Integration test memeriksa alur aplikasi melalui HTTP host dan PostgreSQL nyata.
 | Migration dapat diterapkan ke database kosong | Passed |
 | Seeder membuat data awal | Passed |
 | Database refresh menjalankan `TRUNCATE` dan seed ulang | Passed |
+| Error response dari exception handler dan authorization middleware | Passed |
 
 ## Testing Progress
 

@@ -24,6 +24,37 @@ public class ApiIntegrationTests : IClassFixture<PostgresWebApplicationFactory>
         var response = await client.GetAsync("/api/tasks?page=1&limit=10");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.False((await response.Content.ReadFromJsonAsync<ApiResponse<object>>())!.Success);
+    }
+
+    [Fact]
+    public async Task InvalidRegisterAndLogin_ReturnConsistentErrorBody()
+    {
+        using var client = _factory.CreateClient();
+
+        var badRegister = await client.PostAsJsonAsync(
+            "/api/auth/register", new RegisterRequest("", "bad@mail.com", "secret123"));
+        var badLogin = await client.PostAsJsonAsync(
+            "/api/auth/login", new LoginRequest("user@mail.com", "wrong"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, badRegister.StatusCode);
+        Assert.Equal("Name is required",
+            (await badRegister.Content.ReadFromJsonAsync<ApiResponse<object>>())!.Message);
+        Assert.Equal(HttpStatusCode.Unauthorized, badLogin.StatusCode);
+        Assert.False((await badLogin.Content.ReadFromJsonAsync<ApiResponse<object>>())!.Success);
+    }
+
+    [Fact]
+    public async Task MissingTask_ReturnsWrappedNotFound()
+    {
+        using var client = await CreateAuthenticatedClientAsync("user@mail.com");
+
+        var response = await client.GetAsync("/api/tasks/999999");
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<object>>();
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("Task not found", body!.Message);
+        Assert.Null(body.Data);
     }
 
     [Fact]
@@ -34,8 +65,8 @@ public class ApiIntegrationTests : IClassFixture<PostgresWebApplicationFactory>
         var loginResponse = await client.PostAsJsonAsync(
             "/api/auth/login",
             new LoginRequest("user@mail.com", "secret123"));
-        var auth = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth!.Token);
+        var auth = await loginResponse.Content.ReadFromJsonAsync<ApiResponse<AuthResponse>>();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth!.Data!.Token);
         var tasksResponse = await client.GetAsync("/api/tasks?page=1&limit=10");
 
         Assert.Equal(HttpStatusCode.OK, loginResponse.StatusCode);
@@ -52,6 +83,7 @@ public class ApiIntegrationTests : IClassFixture<PostgresWebApplicationFactory>
         var adminResponse = await adminClient.GetAsync("/api/users");
 
         Assert.Equal(HttpStatusCode.Forbidden, forbiddenResponse.StatusCode);
+        Assert.Equal("Forbidden", (await forbiddenResponse.Content.ReadFromJsonAsync<ApiResponse<object>>())!.Message);
         Assert.Equal(HttpStatusCode.OK, adminResponse.StatusCode);
     }
 
@@ -62,12 +94,12 @@ public class ApiIntegrationTests : IClassFixture<PostgresWebApplicationFactory>
 
         var response = await client.GetAsync(
             "/api/tasks?page=1&limit=10&search=PERSONAL&isCompleted=true&sortBy=title&sortDirection=asc");
-        var result = await response.Content.ReadFromJsonAsync<PaginatedResponse<TaskResponse>>();
+        var result = await response.Content.ReadFromJsonAsync<ApiResponse<PaginatedResponse<TaskResponse>>>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var task = Assert.Single(result!.Items);
+        var task = Assert.Single(result!.Data!.Items);
         Assert.Equal("Create a personal task", task.Title);
-        Assert.DoesNotContain(result.Items, item => item.Title == "Review registered users");
+        Assert.DoesNotContain(result.Data.Items, item => item.Title == "Review registered users");
     }
 
     [Fact]
@@ -78,12 +110,12 @@ public class ApiIntegrationTests : IClassFixture<PostgresWebApplicationFactory>
         var createResponse = await client.PostAsJsonAsync(
             "/api/tasks",
             new CreateTaskRequest("Integration task", "Created through HTTP"));
-        var created = await createResponse.Content.ReadFromJsonAsync<TaskResponse>();
+        var created = (await createResponse.Content.ReadFromJsonAsync<ApiResponse<TaskResponse>>())!.Data!;
 
         var updateResponse = await client.PutAsJsonAsync(
             $"/api/tasks/{created!.Id}",
             new UpdateTaskRequest("Updated integration task", "Updated through HTTP", true));
-        var updated = await updateResponse.Content.ReadFromJsonAsync<TaskResponse>();
+        var updated = (await updateResponse.Content.ReadFromJsonAsync<ApiResponse<TaskResponse>>())!.Data!;
 
         var deleteResponse = await client.DeleteAsync($"/api/tasks/{created.Id}");
         var getResponse = await client.GetAsync($"/api/tasks/{created.Id}");
@@ -92,6 +124,7 @@ public class ApiIntegrationTests : IClassFixture<PostgresWebApplicationFactory>
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
         Assert.True(updated!.IsCompleted);
         Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
+        Assert.Empty(await deleteResponse.Content.ReadAsStringAsync());
         Assert.Equal(HttpStatusCode.NotFound, getResponse.StatusCode);
     }
 
@@ -116,8 +149,8 @@ public class ApiIntegrationTests : IClassFixture<PostgresWebApplicationFactory>
             new LoginRequest(email, "secret123"));
         response.EnsureSuccessStatusCode();
 
-        var auth = await response.Content.ReadFromJsonAsync<AuthResponse>();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth!.Token);
+        var auth = await response.Content.ReadFromJsonAsync<ApiResponse<AuthResponse>>();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth!.Data!.Token);
         return client;
     }
 }

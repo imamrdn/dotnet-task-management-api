@@ -29,18 +29,18 @@ public class TasksController : ControllerBase
     {
         if (page <= 0)
         {
-            return BadRequest("Page must be greater than 0");
+            return BadRequest(ApiResponse<object>.Error("Page must be greater than 0"));
         }
 
         if (limit <= 0)
         {
-            return BadRequest("Limit must be greater than 0");
+            return BadRequest(ApiResponse<object>.Error("Limit must be greater than 0"));
         }
 
         var userId = GetUserIdFromClaims();
         var taskItems = await _taskService.GetTasksAsync(userId, page, limit, search, isCompleted, sortBy, sortDirection);
 
-        return Ok(taskItems);
+        return Ok(ApiResponse<PaginatedResponse<TaskResponse>>.Ok("Tasks retrieved successfully", taskItems));
     }
 
     [HttpGet("{id:int}")]
@@ -48,13 +48,15 @@ public class TasksController : ControllerBase
     {
         if (id <= 0)
         {
-            return NotFound();
+            return NotFound(ApiResponse<object>.Error("Task not found"));
         }
 
         var userId = GetUserIdFromClaims();
         var response = await _taskService.GetTaskByIdAsync(userId, id);
 
-        return response is null ? NotFound() : Ok(response);
+        return response is null
+            ? NotFound(ApiResponse<object>.Error("Task not found"))
+            : Ok(ApiResponse<TaskResponse>.Ok("Task retrieved successfully", response));
     }
 
     [HttpPost]
@@ -69,7 +71,8 @@ public class TasksController : ControllerBase
         var userId = GetUserIdFromClaims();
         var response = await _taskService.CreateTaskAsync(userId, request);
 
-        return Created($"/api/tasks/{response.Id}", response);
+        return Created($"/api/tasks/{response.Id}",
+            ApiResponse<TaskResponse>.Ok("Task created successfully", response));
     }
 
     [HttpPut("{id:int}")]
@@ -77,7 +80,7 @@ public class TasksController : ControllerBase
     {
         if (id <= 0)
         {
-            return NotFound();
+            return NotFound(ApiResponse<object>.Error("Task not found"));
         }
 
         var validationResult = ValidateTaskRequest(request.Title, request.Description);
@@ -89,7 +92,9 @@ public class TasksController : ControllerBase
         var userId = GetUserIdFromClaims();
         var response = await _taskService.UpdateTaskAsync(userId, id, request);
 
-        return response is null ? NotFound() : Ok(response);
+        return response is null
+            ? NotFound(ApiResponse<object>.Error("Task not found"))
+            : Ok(ApiResponse<TaskResponse>.Ok("Task updated successfully", response));
     }
 
     [HttpDelete("{id:int}")]
@@ -97,25 +102,25 @@ public class TasksController : ControllerBase
     {
         if (id <= 0)
         {
-            return NotFound();
+            return NotFound(ApiResponse<object>.Error("Task not found"));
         }
 
         var userId = GetUserIdFromClaims();
         var isDeleted = await _taskService.DeleteTaskAsync(userId, id);
 
-        return isDeleted ? NoContent() : NotFound();
+        return isDeleted ? NoContent() : NotFound(ApiResponse<object>.Error("Task not found"));
     }
 
     private IActionResult? ValidateTaskRequest(string title, string description)
     {
         if (string.IsNullOrWhiteSpace(title))
         {
-            return BadRequest("Title is required");
+            return BadRequest(ApiResponse<object>.Error("Title is required"));
         }
 
         if (string.IsNullOrWhiteSpace(description))
         {
-            return BadRequest("Description is required");
+            return BadRequest(ApiResponse<object>.Error("Description is required"));
         }
 
         return null;

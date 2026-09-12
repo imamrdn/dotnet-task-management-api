@@ -1,0 +1,87 @@
+using Microsoft.AspNetCore.Mvc;
+using Moq;
+using TaskManagement.Api.Controllers;
+using TaskManagement.Api.DTOs;
+using TaskManagement.Api.Services;
+
+namespace TaskManagement.Api.Tests.Controllers;
+
+public class UsersControllerTests
+{
+    private readonly Mock<IUserService> _service = new();
+
+    [Fact]
+    public async Task GetUsers_ReturnsOk()
+    {
+        _service.Setup(service => service.GetUsersAsync()).ReturnsAsync([]);
+
+        Assert.IsType<OkObjectResult>(await CreateController().GetUsers());
+    }
+
+    [Fact]
+    public async Task GetUserById_ReturnsExpectedStatus()
+    {
+        _service.Setup(service => service.GetUserByIdAsync(1))
+            .ReturnsAsync(new UserResponse(1, "User", "user@mail.com"));
+
+        Assert.IsType<NotFoundResult>(await CreateController().GetUserById(0));
+        Assert.IsType<OkObjectResult>(await CreateController().GetUserById(1));
+        Assert.IsType<NotFoundResult>(await CreateController().GetUserById(2));
+    }
+
+    [Fact]
+    public async Task CreateUser_ReturnsCreatedOrBadRequest()
+    {
+        var request = new CreateUserRequest("User", "user@mail.com", "secret123");
+        _service.Setup(service => service.CreateUserAsync(request))
+            .ReturnsAsync(new UserResponse(1, request.Name, request.Email));
+
+        Assert.IsType<CreatedResult>(await CreateController().CreateUser(request));
+
+        _service.Setup(service => service.CreateUserAsync(request))
+            .ThrowsAsync(new ArgumentException("invalid"));
+        Assert.IsType<BadRequestObjectResult>(await CreateController().CreateUser(request));
+
+        _service.Setup(service => service.CreateUserAsync(request))
+            .ThrowsAsync(new InvalidOperationException("duplicate"));
+        Assert.IsType<BadRequestObjectResult>(await CreateController().CreateUser(request));
+    }
+
+    [Fact]
+    public async Task UpdateUser_ReturnsExpectedStatus()
+    {
+        var request = new UpdateUserRequest("User", "user@mail.com", null);
+        var controller = CreateController();
+
+        Assert.IsType<NotFoundResult>(await controller.UpdateUser(0, request));
+
+        _service.Setup(service => service.UpdateUserAsync(1, request))
+            .ReturnsAsync(new UserResponse(1, request.Name, request.Email));
+        Assert.IsType<OkObjectResult>(await controller.UpdateUser(1, request));
+
+        _service.Setup(service => service.UpdateUserAsync(2, request)).ReturnsAsync((UserResponse?)null);
+        Assert.IsType<NotFoundResult>(await controller.UpdateUser(2, request));
+
+        _service.Setup(service => service.UpdateUserAsync(3, request))
+            .ThrowsAsync(new ArgumentException("invalid"));
+        Assert.IsType<BadRequestObjectResult>(await controller.UpdateUser(3, request));
+
+        _service.Setup(service => service.UpdateUserAsync(4, request))
+            .ThrowsAsync(new InvalidOperationException("duplicate"));
+        Assert.IsType<BadRequestObjectResult>(await controller.UpdateUser(4, request));
+    }
+
+    [Fact]
+    public async Task DeleteUser_ReturnsExpectedStatus()
+    {
+        _service.Setup(service => service.DeleteUserAsync(1)).ReturnsAsync(true);
+        _service.Setup(service => service.DeleteUserAsync(2)).ReturnsAsync(false);
+        var controller = CreateController();
+
+        Assert.IsType<NotFoundResult>(await controller.DeleteUser(0));
+        Assert.IsType<NoContentResult>(await controller.DeleteUser(1));
+        Assert.IsType<NotFoundResult>(await controller.DeleteUser(2));
+    }
+
+    private UsersController CreateController() => new(_service.Object);
+}

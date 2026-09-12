@@ -212,4 +212,20 @@ Completed so far:
 
 Next phase:
 
-- API response wrapper, better validation, global error handling, and automated tests
+- API response wrapper, better validation, global error handling, and CI automation
+
+## Testing
+
+Run all unit tests:
+
+```bash
+dotnet test TaskManagement.slnx
+```
+
+Run tests and collect code coverage:
+
+```bash
+dotnet test TaskManagement.slnx --settings coverage.runsettings --collect:"XPlat Code Coverage"
+```
+
+The test suite covers controllers, services, authentication, JWT generation, user-owned tasks, database seeders, HTTP authorization, migrations, PostgreSQL `ILIKE` search, and database refresh. Integration tests create an isolated PostgreSQL database and remove it after the test run.

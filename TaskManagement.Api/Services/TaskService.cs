@@ -19,7 +19,9 @@ public class TaskService : ITaskService
         int page,
         int limit,
         string? search,
-        bool? isCompleted)
+        bool? isCompleted,
+        string? sortBy,
+        string? sortDirection)
     {
         var query = _dbContext.Tasks
             .Where(task => task.UserId == userId);
@@ -40,9 +42,22 @@ public class TaskService : ITaskService
 
         var totalItems = await query.CountAsync();
         var totalPages = (int)Math.Ceiling(totalItems / (double)limit);
+        var isDescending = string.Equals(sortDirection, "desc", StringComparison.OrdinalIgnoreCase);
+
+        query = sortBy?.ToLower() switch
+        {
+            "title" => isDescending
+                ? query.OrderByDescending(task => task.Title)
+                : query.OrderBy(task => task.Title),
+            "iscompleted" => isDescending
+                ? query.OrderByDescending(task => task.IsCompleted)
+                : query.OrderBy(task => task.IsCompleted),
+            _ => isDescending
+                ? query.OrderByDescending(task => task.Id)
+                : query.OrderBy(task => task.Id)
+        };
 
         var items = await query
-            .OrderBy(task => task.Id)
             .Skip((page - 1) * limit)
             .Take(limit)
             .Select(task => new TaskResponse(

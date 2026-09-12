@@ -9,7 +9,9 @@ public interface ITaskService
         int page,
         int limit,
         string? search,
-        bool? isCompleted);
+        bool? isCompleted,
+        string? sortBy,
+        string? sortDirection);
     Task<TaskResponse?> GetTaskByIdAsync(int userId, int id);
     Task<TaskResponse> CreateTaskAsync(int userId, CreateTaskRequest request);
     Task<TaskResponse?> UpdateTaskAsync(int userId, int id, UpdateTaskRequest request);

@@ -23,7 +23,9 @@ public class TasksController : ControllerBase
         int page,
         int limit,
         string? search,
-        bool? isCompleted)
+        bool? isCompleted,
+        string? sortBy,
+        string? sortDirection)
     {
         if (page <= 0)
         {
@@ -36,7 +38,7 @@ public class TasksController : ControllerBase
         }
 
         var userId = GetUserIdFromClaims();
-        var taskItems = await _taskService.GetTasksAsync(userId, page, limit, search, isCompleted);
+        var taskItems = await _taskService.GetTasksAsync(userId, page, limit, search, isCompleted, sortBy, sortDirection);
 
         return Ok(taskItems);
     }

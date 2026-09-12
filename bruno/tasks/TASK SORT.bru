@@ -1,0 +1,19 @@
+meta {
+  name: TASK SORT
+  type: http
+  seq: 16
+}
+
+get {
+  url: {{baseUrl}}/api/tasks?page={{page}}&limit={{limit}}&sortBy={{sortBy}}&sortDirection={{sortDirection}}
+  body: none
+  auth: bearer
+}
+
+headers {
+  Accept: application/json
+}
+
+auth:bearer {
+  token: {{authToken}}
+}

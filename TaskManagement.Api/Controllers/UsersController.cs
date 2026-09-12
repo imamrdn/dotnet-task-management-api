@@ -5,7 +5,7 @@ using TaskManagement.Api.Services;
 
 namespace TaskManagement.Api.Controllers;
 
-[Authorize]
+[Authorize(Roles = "Admin")]
 [ApiController]
 [Route("api/users")]
 public class UsersController : ControllerBase

@@ -17,6 +17,10 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<TaskItem>().ToTable("tasks");
         modelBuilder.Entity<User>().ToTable("users");
 
+        modelBuilder.Entity<User>()
+            .Property(user => user.Role)
+            .HasDefaultValue("User");
+
         modelBuilder.Entity<TaskItem>()
             .HasOne(t => t.User)
             .WithMany(u => u.Tasks)

@@ -51,6 +51,7 @@ public class AuthService
         {
             Name = request.Name,
             Email = request.Email,
+            Role = "User"
         };
 
         var passwordHasher = new PasswordHasher<User>();
@@ -118,7 +119,8 @@ public class AuthService
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Email, user.Email),
-            new Claim(ClaimTypes.Name, user.Name)
+            new Claim(ClaimTypes.Name, user.Name),
+            new Claim(ClaimTypes.Role, user.Role)
         };
 
         var token = new JwtSecurityToken(

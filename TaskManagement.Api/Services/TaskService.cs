@@ -14,9 +14,12 @@ public class TaskService : ITaskService
         _dbContext = dbContext;
     }
 
-    public async Task<List<TaskResponse>> GetTasksAsync()
+    public async Task<List<TaskResponse>> GetTasksAsync(int page, int limit)
     {
         return await _dbContext.Tasks
+            .OrderBy(task => task.Id)
+            .Skip((page - 1) * limit)
+            .Take(limit)
             .Select(task => new TaskResponse(
                 task.Id,
                 task.Title,

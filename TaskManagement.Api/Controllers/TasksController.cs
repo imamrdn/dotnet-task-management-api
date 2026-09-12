@@ -28,7 +28,7 @@ public class TasksController : ControllerBase
             return BadRequest("Limit must be greater than 0");
         }
 
-        var taskItems = await _taskService.GetTasksAsync();
+        var taskItems = await _taskService.GetTasksAsync(page, limit);
 
         return Ok(taskItems);
     }

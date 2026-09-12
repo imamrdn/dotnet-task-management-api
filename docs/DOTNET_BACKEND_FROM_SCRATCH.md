@@ -673,7 +673,7 @@ GET /api/tasks?sortBy=title&sortDirection=desc
 - [x] Sorting
 - [x] Global Exception Handling
 - [ ] Logging
-- [ ] Validation
+- [x] Validation
 - [ ] Configuration
 - [ ] CORS
 - [ ] Swagger / OpenAPI

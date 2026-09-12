@@ -23,14 +23,18 @@ Task Management API built with ASP.NET Core, PostgreSQL, Entity Framework Core, 
 └── TaskManagement.Api/
     ├── Controllers/
     │   ├── AuthController.cs
-    │   └── TasksController.cs
+    │   ├── TasksController.cs
+    │   └── UsersController.cs
     ├── DTOs/
     │   ├── AuthResponse.cs
     │   ├── CreateTaskRequest.cs
     │   ├── LoginRequest.cs
+    │   ├── PaginatedResponse.cs
     │   ├── RegisterRequest.cs
     │   ├── TaskResponse.cs
-    │   └── UpdateTaskRequest.cs
+    │   ├── UpdateTaskRequest.cs
+    │   ├── UserRequest.cs
+    │   └── UserResponse.cs
     ├── Data/
     │   ├── AppDbContext.cs
     │   └── Seeders/
@@ -39,8 +43,12 @@ Task Management API built with ASP.NET Core, PostgreSQL, Entity Framework Core, 
     │   ├── TaskItem.cs
     │   └── User.cs
     ├── Services/
+    │   ├── IAuthService.cs
     │   ├── ITaskService.cs
-    │   └── TaskService.cs
+    │   ├── IUserService.cs
+    │   ├── AuthService.cs
+    │   ├── TaskService.cs
+    │   └── UserService.cs
     └── Program.cs
 ```
 
@@ -60,7 +68,10 @@ Task Management API built with ASP.NET Core, PostgreSQL, Entity Framework Core, 
 - User-owned task data
 - User and task database relationship
 - Demo database seeding
-- Basic pagination for task list
+- Pagination metadata for task list
+- Search task by title or description
+- Filter task by completion status
+- Sort task list by supported fields
 - Manual request validation
 - DTO-based request and response models
 - Controller and service layer separation
@@ -72,11 +83,14 @@ Task Management API built with ASP.NET Core, PostgreSQL, Entity Framework Core, 
 POST    /api/auth/register
 POST    /api/auth/login
 
-GET     /api/tasks?page=1&limit=10   (requires Bearer token)
-GET     /api/tasks/{id}              (requires Bearer token)
-POST    /api/tasks                   (requires Bearer token)
-PUT     /api/tasks/{id}              (requires Bearer token)
-DELETE  /api/tasks/{id}              (requires Bearer token)
+GET     /api/tasks?page=1&limit=10                                (requires Bearer token)
+GET     /api/tasks?page=1&limit=10&search=login                   (requires Bearer token)
+GET     /api/tasks?page=1&limit=10&isCompleted=true               (requires Bearer token)
+GET     /api/tasks?page=1&limit=10&sortBy=id&sortDirection=desc   (requires Bearer token)
+GET     /api/tasks/{id}                                           (requires Bearer token)
+POST    /api/tasks                                                (requires Bearer token)
+PUT     /api/tasks/{id}                                           (requires Bearer token)
+DELETE  /api/tasks/{id}                                           (requires Bearer token)
 
 GET     /api/users                   (requires Admin role)
 GET     /api/users/{id}              (requires Admin role)
@@ -169,6 +183,10 @@ baseUrl: http://localhost:5298
 taskId: 1
 page: 1
 limit: 10
+search: login
+isCompleted: true
+sortBy: id
+sortDirection: desc
 authToken:
 ```
 
@@ -189,7 +207,9 @@ Completed so far:
 - User and task relationship
 - User-scoped task CRUD
 - Database seeding with demo admin, demo user, and demo tasks
+- Pagination metadata
+- Search, filter, and sorting for task list
 
 Next phase:
 
-- API features such as search, filtering, sorting, better pagination metadata, and automated tests
+- API response wrapper, better validation, global error handling, and automated tests

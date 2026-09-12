@@ -1,6 +1,6 @@
 # .NET Task Management API
 
-Task Management API built with ASP.NET Core, PostgreSQL, Entity Framework Core, and JWT authentication. This project is used as a step-by-step backend learning project, starting from basic HTTP endpoints and growing into a more structured API with DTOs, validation, service layer, database persistence, protected endpoints, user-owned tasks, and demo seed data.
+Task Management API built with ASP.NET Core, PostgreSQL, Entity Framework Core, and JWT authentication. This project is used as a step-by-step backend learning project, starting from basic HTTP endpoints and growing into a more structured API with DTOs, validation, service layer, database persistence, protected endpoints, role-based access, user-owned tasks, and demo seed data.
 
 ## Tech Stack
 
@@ -17,13 +17,9 @@ Task Management API built with ASP.NET Core, PostgreSQL, Entity Framework Core, 
 ```text
 .
 ├── bruno/
-│   ├── CREATE TASK.bru
-│   ├── DELETE TASK.bru
-│   ├── LOGIN.bru
-│   ├── PUT TASK.bru
-│   ├── REGISTER.bru
-│   ├── TASK BY ID.bru
-│   └── TASK LIST.bru
+│   ├── auth/
+│   ├── tasks/
+│   └── users/
 └── TaskManagement.Api/
     ├── Controllers/
     │   ├── AuthController.cs
@@ -37,7 +33,7 @@ Task Management API built with ASP.NET Core, PostgreSQL, Entity Framework Core, 
     │   └── UpdateTaskRequest.cs
     ├── Data/
     │   ├── AppDbContext.cs
-    │   └── DatabaseSeeder.cs
+    │   └── Seeders/
     ├── Migrations/
     ├── Models/
     │   ├── TaskItem.cs
@@ -60,6 +56,7 @@ Task Management API built with ASP.NET Core, PostgreSQL, Entity Framework Core, 
 - Password hashing
 - JWT token generation
 - JWT-protected task endpoints
+- Role-based user management access
 - User-owned task data
 - User and task database relationship
 - Demo database seeding
@@ -80,9 +77,17 @@ GET     /api/tasks/{id}              (requires Bearer token)
 POST    /api/tasks                   (requires Bearer token)
 PUT     /api/tasks/{id}              (requires Bearer token)
 DELETE  /api/tasks/{id}              (requires Bearer token)
+
+GET     /api/users                   (requires Admin role)
+GET     /api/users/{id}              (requires Admin role)
+POST    /api/users                   (requires Admin role)
+PUT     /api/users/{id}              (requires Admin role)
+DELETE  /api/users/{id}              (requires Admin role)
 ```
 
 Task endpoints are scoped to the authenticated user. A user can only list, create, update, and delete their own tasks.
+
+User management endpoints are scoped to users with the `Admin` role.
 
 ## Local Setup
 
@@ -113,14 +118,29 @@ Apply EF Core migrations:
 dotnet ef database update --project TaskManagement.Api
 ```
 
-The app runs a demo seeder on startup. If `demo@example.com` does not exist, it creates:
+In Development, the app runs a demo seeder on startup. It creates:
 
 ```text
-Email: demo@example.com
+Admin:
+Email: admin@mail.com
+Password: secret123
+
+User:
+Email: user@mail.com
 Password: secret123
 ```
 
-The seeder also creates demo tasks owned by that demo user.
+The seeder also creates separate demo tasks for each account.
+
+To reset demo data on startup in Development, set:
+
+```json
+{
+  "Database": {
+    "RefreshOnStartup": true
+  }
+}
+```
 
 Run the API:
 
@@ -152,7 +172,7 @@ limit: 10
 authToken:
 ```
 
-Run `LOGIN` to receive a JWT. The login request stores the response token into `authToken`, and the task requests use Bruno Bearer auth with that variable.
+Run `auth/LOGIN ADMIN` or `auth/LOGIN USER` to receive a JWT. The login requests store the response token into `authToken`, and the task/user requests use Bruno Bearer auth with that variable.
 
 ## Learning Progress
 
@@ -165,9 +185,10 @@ Completed so far:
 - DTOs, validation, controller, service layer, and dependency injection
 - Authentication with register, login, password hashing, and JWT
 - Protected task endpoints with `[Authorize]`
+- Role-based authorization for user management
 - User and task relationship
 - User-scoped task CRUD
-- Database seeding with demo user and demo tasks
+- Database seeding with demo admin, demo user, and demo tasks
 
 Next phase:
 

@@ -10,10 +10,12 @@ public class AppDbContext : DbContext
     }
 
     public DbSet<TaskItem> Tasks => Set<TaskItem>();
+    public DbSet<User> Users => Set<User>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<TaskItem>().ToTable("tasks");
+        modelBuilder.Entity<User>().ToTable("users");
     }
 
 

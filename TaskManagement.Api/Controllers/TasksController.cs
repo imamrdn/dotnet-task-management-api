@@ -19,7 +19,11 @@ public class TasksController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetTasks(int page, int limit)
+    public async Task<IActionResult> GetTasks(
+        int page,
+        int limit,
+        string? search,
+        bool? isCompleted)
     {
         if (page <= 0)
         {
@@ -32,7 +36,7 @@ public class TasksController : ControllerBase
         }
 
         var userId = GetUserIdFromClaims();
-        var taskItems = await _taskService.GetTasksAsync(userId, page, limit);
+        var taskItems = await _taskService.GetTasksAsync(userId, page, limit, search, isCompleted);
 
         return Ok(taskItems);
     }

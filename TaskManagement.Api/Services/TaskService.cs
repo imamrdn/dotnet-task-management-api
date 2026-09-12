@@ -14,10 +14,29 @@ public class TaskService : ITaskService
         _dbContext = dbContext;
     }
 
-    public async Task<PaginatedResponse<TaskResponse>> GetTasksAsync(int userId, int page, int limit)
+    public async Task<PaginatedResponse<TaskResponse>> GetTasksAsync(
+        int userId,
+        int page,
+        int limit,
+        string? search,
+        bool? isCompleted)
     {
         var query = _dbContext.Tasks
             .Where(task => task.UserId == userId);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchPattern = $"%{search}%";
+
+            query = query.Where(task =>
+                EF.Functions.ILike(task.Title, searchPattern) ||
+                EF.Functions.ILike(task.Description, searchPattern));
+        }
+
+        if (isCompleted is not null)
+        {
+            query = query.Where(task => task.IsCompleted == isCompleted);
+        }
 
         var totalItems = await query.CountAsync();
         var totalPages = (int)Math.Ceiling(totalItems / (double)limit);

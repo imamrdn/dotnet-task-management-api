@@ -1,0 +1,19 @@
+meta {
+  name: TASK FILTER COMPLETED
+  type: http
+  seq: 15
+}
+
+get {
+  url: {{baseUrl}}/api/tasks?page={{page}}&limit={{limit}}&isCompleted={{isCompleted}}
+  body: none
+  auth: bearer
+}
+
+headers {
+  Accept: application/json
+}
+
+auth:bearer {
+  token: {{authToken}}
+}

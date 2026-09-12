@@ -228,6 +228,8 @@ Successful responses use a shared envelope:
 
 Errors use `success: false`, an error message, and `data: null`. Validation and duplicate email errors return `400`, invalid credentials return `401`, forbidden access returns `403`, missing resources return `404`, and unexpected exceptions return a generic `500` message. The global exception handler logs unexpected errors without exposing their details. Successful DELETE remains `204 No Content` with no body. Bruno login requests read the token from `data.token`.
 
+Request DTOs use Data Annotations for required fields and email format. Invalid HTTP requests return the same API response envelope through ASP.NET Core model validation.
+
 ## Testing
 
 Run all unit tests:

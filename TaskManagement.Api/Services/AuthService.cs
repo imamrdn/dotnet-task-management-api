@@ -52,4 +52,41 @@ public class AuthService
         _dbContext.Users.Add(user);
         await _dbContext.SaveChangesAsync();
     }
+
+    public async Task LoginAsync(LoginRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Email))
+        {
+            throw new ArgumentException("Email is required");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Password))
+        {
+            throw new ArgumentException("Password is required");
+        }
+
+        var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+
+        if (user == null)
+        {
+            throw new UnauthorizedAccessException("Invalid email or password");
+        }
+
+        var passwordHasher = new PasswordHasher<User>();
+        PasswordVerificationResult result;
+
+        try
+        {
+            result = passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
+        }
+        catch (FormatException)
+        {
+            throw new UnauthorizedAccessException("Invalid email or password");
+        }
+
+        if (result == PasswordVerificationResult.Failed)
+        {
+            throw new UnauthorizedAccessException("Invalid email or password");
+        }
+    }
 }

@@ -1,0 +1,23 @@
+meta {
+  name: LOGIN
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/api/auth/login
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+body:json {
+  {
+    "email": "imam@example.com",
+    "password": "secret123"
+  }
+}

@@ -1,6 +1,6 @@
 # .NET Task Management API
 
-Task Management API built with ASP.NET Core, PostgreSQL, Entity Framework Core, and JWT authentication. This project is used as a step-by-step backend learning project, starting from basic HTTP endpoints and growing into a more structured API with DTOs, validation, service layer, database persistence, and protected endpoints.
+Task Management API built with ASP.NET Core, PostgreSQL, Entity Framework Core, and JWT authentication. This project is used as a step-by-step backend learning project, starting from basic HTTP endpoints and growing into a more structured API with DTOs, validation, service layer, database persistence, protected endpoints, user-owned tasks, and demo seed data.
 
 ## Tech Stack
 
@@ -36,7 +36,8 @@ Task Management API built with ASP.NET Core, PostgreSQL, Entity Framework Core, 
     │   ├── TaskResponse.cs
     │   └── UpdateTaskRequest.cs
     ├── Data/
-    │   └── AppDbContext.cs
+    │   ├── AppDbContext.cs
+    │   └── DatabaseSeeder.cs
     ├── Migrations/
     ├── Models/
     │   ├── TaskItem.cs
@@ -59,6 +60,9 @@ Task Management API built with ASP.NET Core, PostgreSQL, Entity Framework Core, 
 - Password hashing
 - JWT token generation
 - JWT-protected task endpoints
+- User-owned task data
+- User and task database relationship
+- Demo database seeding
 - Basic pagination for task list
 - Manual request validation
 - DTO-based request and response models
@@ -77,6 +81,8 @@ POST    /api/tasks                   (requires Bearer token)
 PUT     /api/tasks/{id}              (requires Bearer token)
 DELETE  /api/tasks/{id}              (requires Bearer token)
 ```
+
+Task endpoints are scoped to the authenticated user. A user can only list, create, update, and delete their own tasks.
 
 ## Local Setup
 
@@ -106,6 +112,15 @@ Apply EF Core migrations:
 ```bash
 dotnet ef database update --project TaskManagement.Api
 ```
+
+The app runs a demo seeder on startup. If `demo@example.com` does not exist, it creates:
+
+```text
+Email: demo@example.com
+Password: secret123
+```
+
+The seeder also creates demo tasks owned by that demo user.
 
 Run the API:
 
@@ -150,7 +165,10 @@ Completed so far:
 - DTOs, validation, controller, service layer, and dependency injection
 - Authentication with register, login, password hashing, and JWT
 - Protected task endpoints with `[Authorize]`
+- User and task relationship
+- User-scoped task CRUD
+- Database seeding with demo user and demo tasks
 
 Next phase:
 
-- User and task relationship so each user can manage only their own tasks
+- API features such as search, filtering, sorting, better pagination metadata, and automated tests

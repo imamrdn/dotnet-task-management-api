@@ -17,7 +17,15 @@ headers {
 
 body:json {
   {
-    "email": "imam@example.com",
+    "email": "cek@example.com",
     "password": "secret123"
+  }
+}
+
+script:post-response {
+  const body = res.getBody();
+
+  if (res.getStatus() === 200 && body.token) {
+    bru.setEnvVar("authToken", body.token, { persist: true });
   }
 }

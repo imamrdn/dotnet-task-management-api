@@ -7,9 +7,13 @@ meta {
 get {
   url: {{baseUrl}}/api/tasks?page={{page}}&limit={{limit}}
   body: none
-  auth: none
+  auth: bearer
 }
 
 headers {
   Accept: application/json
+}
+
+auth:bearer {
+  token: {{authToken}}
 }

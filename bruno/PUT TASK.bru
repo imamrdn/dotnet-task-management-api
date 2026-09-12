@@ -7,12 +7,16 @@ meta {
 put {
   url: {{baseUrl}}/api/tasks/{{taskId}}
   body: json
-  auth: none
+  auth: bearer
 }
 
 headers {
   Content-Type: application/json
   Accept: application/json
+}
+
+auth:bearer {
+  token: {{authToken}}
 }
 
 body:json {

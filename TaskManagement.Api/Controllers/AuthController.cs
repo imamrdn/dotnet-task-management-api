@@ -38,8 +38,8 @@ public class AuthController : ControllerBase
     {
         try
         {
-            await _authService.LoginAsync(request);
-            return Ok(new { message = "Login successful" });
+            var response = await _authService.LoginAsync(request);
+            return Ok(response);
         }
         catch (ArgumentException ex)
         {

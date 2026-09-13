@@ -254,6 +254,34 @@ public class TaskService : ITaskService
         );
     }
 
+    public async Task<TaskResponse?> UpdateTaskCompletionAsync(
+        int userId,
+        int id,
+        UpdateTaskCompletionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var task = await _dbContext.Tasks
+            .WhereActive()
+            .FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId, cancellationToken);
+        if (task is null)
+        {
+            return null;
+        }
+
+        task.IsCompleted = request.IsCompleted;
+        task.UpdatedAt = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Task {TaskId} completion updated by user {UserId}", task.Id, userId);
+
+        return new TaskResponse(
+            task.Id,
+            task.Title,
+            task.Description,
+            task.IsCompleted
+        );
+    }
+
     public async Task<bool> DeleteTaskAsync(
         int userId,
         int id,

@@ -198,6 +198,38 @@ public class TaskServiceTests
     }
 
     [Fact]
+    public async Task UpdateTaskCompletionAsync_UpdatesOnlyCompletionOrReturnsNull()
+    {
+        await using var context = TestDbContextFactory.Create();
+        context.Tasks.Add(new TaskItem
+        {
+            Id = 1,
+            UserId = 1,
+            Title = "Keep title",
+            Description = "Keep description",
+            IsCompleted = false
+        });
+        await context.SaveChangesAsync();
+        var service = CreateService(context);
+
+        var result = await service.UpdateTaskCompletionAsync(
+            1,
+            1,
+            new UpdateTaskCompletionRequest(true));
+
+        Assert.True(result!.IsCompleted);
+        var task = (await context.Tasks.FindAsync(1))!;
+        Assert.Equal("Keep title", task.Title);
+        Assert.Equal("Keep description", task.Description);
+        Assert.True(task.IsCompleted);
+        Assert.NotNull(task.UpdatedAt);
+        Assert.Null(await service.UpdateTaskCompletionAsync(
+            2,
+            1,
+            new UpdateTaskCompletionRequest(false)));
+    }
+
+    [Fact]
     public async Task DeleteTaskAsync_DeletesOwnedTaskOnly()
     {
         await using var context = TestDbContextFactory.Create();

@@ -1,0 +1,26 @@
+meta {
+  name: PATCH TASK COMPLETION
+  type: http
+  seq: 7
+}
+
+patch {
+  url: {{baseUrl}}/api/tasks/{{taskId}}/completion
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  {
+    "isCompleted": false
+  }
+}

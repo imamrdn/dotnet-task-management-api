@@ -1,0 +1,26 @@
+meta {
+  name: 06 PATCH TASK COMPLETION
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{baseUrl}}/api/tasks/{{flowTaskId}}/completion
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  {
+    "isCompleted": false
+  }
+}

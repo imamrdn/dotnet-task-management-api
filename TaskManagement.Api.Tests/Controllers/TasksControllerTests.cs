@@ -147,6 +147,23 @@ public class TasksControllerTests
     }
 
     [Fact]
+    public async Task UpdateTaskCompletion_CoversNotFoundAndSuccess()
+    {
+        var controller = CreateController();
+        var request = new UpdateTaskCompletionRequest(true);
+        var response = new TaskResponse(1, "Title", "Description", true);
+        _service.Setup(service => service.UpdateTaskCompletionAsync(7, 1, request))
+            .ReturnsAsync(response);
+
+        Assert.IsType<NotFoundObjectResult>(await controller.UpdateTaskCompletion(0, request));
+        Assert.IsType<OkObjectResult>(await controller.UpdateTaskCompletion(1, request));
+
+        _service.Setup(service => service.UpdateTaskCompletionAsync(7, 2, request))
+            .ReturnsAsync((TaskResponse?)null);
+        Assert.IsType<NotFoundObjectResult>(await controller.UpdateTaskCompletion(2, request));
+    }
+
+    [Fact]
     public async Task DeleteTask_ReturnsExpectedStatus()
     {
         _service.Setup(service => service.DeleteTaskAsync(7, 1)).ReturnsAsync(true);

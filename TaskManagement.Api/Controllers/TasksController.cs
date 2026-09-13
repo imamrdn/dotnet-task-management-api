@@ -123,6 +123,25 @@ public class TasksController : ControllerBase
             : Ok(ApiResponse<TaskResponse>.Ok("Task updated successfully", response));
     }
 
+    [HttpPatch("{id:int}/completion")]
+    public async Task<IActionResult> UpdateTaskCompletion(
+        int id,
+        UpdateTaskCompletionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (id <= 0)
+        {
+            return NotFound(ApiResponse<object>.Error("Task not found"));
+        }
+
+        var userId = GetUserIdFromClaims();
+        var response = await _taskService.UpdateTaskCompletionAsync(userId, id, request, cancellationToken);
+
+        return response is null
+            ? NotFound(ApiResponse<object>.Error("Task not found"))
+            : Ok(ApiResponse<TaskResponse>.Ok("Task completion updated successfully", response));
+    }
+
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteTask(int id, CancellationToken cancellationToken = default)
     {

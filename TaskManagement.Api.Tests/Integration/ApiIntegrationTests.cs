@@ -336,12 +336,20 @@ public class ApiIntegrationTests : IClassFixture<PostgresWebApplicationFactory>
             new UpdateTaskRequest("Updated integration task", "Updated through HTTP", true));
         var updated = (await updateResponse.Content.ReadFromJsonAsync<ApiResponse<TaskResponse>>())!.Data!;
 
+        var patchResponse = await client.PatchAsJsonAsync(
+            $"/api/tasks/{created.Id}/completion",
+            new UpdateTaskCompletionRequest(false));
+        var patched = (await patchResponse.Content.ReadFromJsonAsync<ApiResponse<TaskResponse>>())!.Data!;
+
         var deleteResponse = await client.DeleteAsync($"/api/tasks/{created.Id}");
         var getResponse = await client.GetAsync($"/api/tasks/{created.Id}");
 
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
         Assert.True(updated!.IsCompleted);
+        Assert.Equal(HttpStatusCode.OK, patchResponse.StatusCode);
+        Assert.False(patched!.IsCompleted);
+        Assert.Equal("Updated integration task", patched.Title);
         Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
         Assert.Empty(await deleteResponse.Content.ReadAsStringAsync());
         Assert.Equal(HttpStatusCode.NotFound, getResponse.StatusCode);

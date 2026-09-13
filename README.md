@@ -22,6 +22,7 @@ Task Management API built with ASP.NET Core, PostgreSQL, Entity Framework Core, 
 │   │   ├── admin/
 │   │   ├── negative/
 │   │   └── user/
+│   ├── health/
 │   ├── tasks/
 │   └── users/
 └── TaskManagement.Api/
@@ -101,11 +102,15 @@ GET     /api/users/{id}              (requires Admin role)
 POST    /api/users                   (requires Admin role)
 PUT     /api/users/{id}              (requires Admin role)
 DELETE  /api/users/{id}              (requires Admin role)
+
+GET     /health
 ```
 
 Task endpoints are scoped to the authenticated user. A user can only list, create, update, and delete their own tasks.
 
 User management endpoints are scoped to users with the `Admin` role.
+
+Health check verifies that the API can connect to the database.
 
 ## Local Setup
 
@@ -210,6 +215,8 @@ authToken:
 
 Run `auth/LOGIN ADMIN` or `auth/LOGIN USER` to receive a JWT. The login requests store the response token into `authToken`, and the task/user requests use Bruno Bearer auth with that variable.
 
+Run `health/HEALTH CHECK` to verify the API and database connection.
+
 The `flows/` folder contains ordered request scenarios:
 
 ```text
@@ -240,6 +247,7 @@ Completed so far:
 - Local secret configuration with .NET User Secrets
 - Environment-specific configuration
 - CORS configuration for browser clients
+- Health check endpoint for API and database readiness
 
 Next phase:
 

@@ -46,6 +46,18 @@ public class ApiIntegrationTests : IClassFixture<PostgresWebApplicationFactory>
     }
 
     [Fact]
+    public async Task HealthEndpoint_WhenDatabaseIsAvailable_ReturnsHealthy()
+    {
+        using var client = _factory.CreateClient();
+
+        var response = await client.GetAsync("/health");
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Healthy", body);
+    }
+
+    [Fact]
     public async Task InvalidRegisterAndLogin_ReturnConsistentErrorBody()
     {
         using var client = _factory.CreateClient();

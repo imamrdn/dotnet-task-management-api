@@ -32,9 +32,7 @@ public class UserService : IUserService
 
     public async Task<UserResponse?> GetUserByIdAsync(int id)
     {
-        var user = await _dbContext.Users
-            .AsNoTracking()
-            .FirstOrDefaultAsync(user => user.Id == id);
+        var user = await _dbContext.Users.FindAsync(id);
         if (user is null)
         {
             return null;
@@ -78,7 +76,7 @@ public class UserService : IUserService
     {
         ValidateUserRequest(request.Name, request.Email);
 
-        var user = await _dbContext.Users.FirstOrDefaultAsync(user => user.Id == id);
+        var user = await _dbContext.Users.FindAsync(id);
         if (user is null)
         {
             return null;
@@ -109,7 +107,7 @@ public class UserService : IUserService
 
     public async Task<bool> DeleteUserAsync(int id)
     {
-        var user = await _dbContext.Users.FirstOrDefaultAsync(user => user.Id == id);
+        var user = await _dbContext.Users.FindAsync(id);
         if (user is null)
         {
             return false;

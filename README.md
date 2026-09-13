@@ -18,6 +18,10 @@ Task Management API built with ASP.NET Core, PostgreSQL, Entity Framework Core, 
 .
 ├── bruno/
 │   ├── auth/
+│   ├── flows/
+│   │   ├── admin/
+│   │   ├── negative/
+│   │   └── user/
 │   ├── tasks/
 │   └── users/
 └── TaskManagement.Api/
@@ -184,6 +188,8 @@ Common variables:
 ```text
 baseUrl: http://localhost:5298
 taskId: 1
+flowUserId:
+flowTaskId:
 page: 1
 limit: 10
 search: login
@@ -194,6 +200,16 @@ authToken:
 ```
 
 Run `auth/LOGIN ADMIN` or `auth/LOGIN USER` to receive a JWT. The login requests store the response token into `authToken`, and the task/user requests use Bruno Bearer auth with that variable.
+
+The `flows/` folder contains ordered request scenarios:
+
+```text
+flows/admin     Login admin, list users, create user, update user, delete user
+flows/user      Login user, create task, list tasks, get task, update task, delete task
+flows/negative  Wrong password, missing token, forbidden user access, validation error, missing task
+```
+
+Run the requests in each flow from top to bottom. `flows/admin` stores the created user ID in `flowUserId`, and `flows/user` stores the created task ID in `flowTaskId`.
 
 ## Learning Progress
 

@@ -1,0 +1,36 @@
+meta {
+  name: 03 CREATE USER
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/users
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  {
+    "name": "Flow User",
+    "email": "flow-user@example.com",
+    "password": "secret123"
+  }
+}
+
+script:post-response {
+  const body = res.getBody();
+
+  if (res.getStatus() === 201 && body.data?.id) {
+    bru.setEnvVar("flowUserId", body.data.id);
+  }
+}

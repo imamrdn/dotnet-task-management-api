@@ -1,0 +1,28 @@
+meta {
+  name: 05 UPDATE TASK
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{baseUrl}}/api/tasks/{{flowTaskId}}
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  {
+    "title": "Flow Task Updated",
+    "description": "Updated from Bruno user flow",
+    "isCompleted": true
+  }
+}

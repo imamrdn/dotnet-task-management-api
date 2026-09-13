@@ -1,0 +1,27 @@
+meta {
+  name: 04 CREATE TASK WITHOUT TITLE
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/tasks
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  {
+    "title": "",
+    "description": "This request should return validation error"
+  }
+}

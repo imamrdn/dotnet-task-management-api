@@ -1,0 +1,19 @@
+meta {
+  name: 03 USER ACCESS USERS ENDPOINT
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/users
+  body: none
+  auth: bearer
+}
+
+headers {
+  Accept: application/json
+}
+
+auth:bearer {
+  token: {{authToken}}
+}

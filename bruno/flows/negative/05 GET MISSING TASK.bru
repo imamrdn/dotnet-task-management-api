@@ -1,0 +1,19 @@
+meta {
+  name: 05 GET MISSING TASK
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/tasks/999999
+  body: none
+  auth: bearer
+}
+
+headers {
+  Accept: application/json
+}
+
+auth:bearer {
+  token: {{authToken}}
+}

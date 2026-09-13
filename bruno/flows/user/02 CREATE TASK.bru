@@ -1,0 +1,35 @@
+meta {
+  name: 02 CREATE TASK
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/tasks
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  {
+    "title": "Flow Task",
+    "description": "Created from Bruno user flow"
+  }
+}
+
+script:post-response {
+  const body = res.getBody();
+
+  if (res.getStatus() === 201 && body.data?.id) {
+    bru.setEnvVar("flowTaskId", body.data.id);
+  }
+}

@@ -1,0 +1,19 @@
+meta {
+  name: 04 GET TASK BY ID
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/tasks/{{flowTaskId}}
+  body: none
+  auth: bearer
+}
+
+headers {
+  Accept: application/json
+}
+
+auth:bearer {
+  token: {{authToken}}
+}

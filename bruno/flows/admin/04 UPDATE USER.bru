@@ -1,0 +1,28 @@
+meta {
+  name: 04 UPDATE USER
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/api/users/{{flowUserId}}
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  {
+    "name": "Flow User Updated",
+    "email": "flow-user-updated@example.com",
+    "password": "secret123"
+  }
+}

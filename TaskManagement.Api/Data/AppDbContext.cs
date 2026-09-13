@@ -21,6 +21,16 @@ public class AppDbContext : DbContext
             .Property(user => user.Role)
             .HasDefaultValue("User");
 
+        modelBuilder.Entity<User>()
+            .HasIndex(user => user.Email)
+            .IsUnique();
+
+        modelBuilder.Entity<TaskItem>()
+            .HasIndex(task => task.UserId);
+
+        modelBuilder.Entity<TaskItem>()
+            .HasIndex(task => new { task.UserId, task.Id });
+
         modelBuilder.Entity<TaskItem>()
             .HasOne(t => t.User)
             .WithMany(u => u.Tasks)

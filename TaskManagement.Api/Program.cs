@@ -10,6 +10,7 @@ using TaskManagement.Api.DTOs;
 using TaskManagement.Api.Errors;
 
 var builder = WebApplication.CreateBuilder(args);
+const string CorsPolicyName = "AllowedOrigins";
 
 builder.Services.AddOpenApi();
 builder.Services.AddControllers();
@@ -46,6 +47,16 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(CorsPolicyName, policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -91,6 +102,7 @@ app.UseStatusCodePages(async context =>
     await context.HttpContext.Response.WriteAsJsonAsync(ApiResponse<object>.Error(message));
 });
 app.UseHttpsRedirection();
+app.UseCors(CorsPolicyName);
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

@@ -31,6 +31,21 @@ public class ApiIntegrationTests : IClassFixture<PostgresWebApplicationFactory>
     }
 
     [Fact]
+    public async Task Cors_PreflightFromAllowedOrigin_ReturnsCorsHeaders()
+    {
+        using var client = _factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Options, "/api/tasks");
+        request.Headers.Add("Origin", "http://localhost:5173");
+        request.Headers.Add("Access-Control-Request-Method", "GET");
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.True(response.Headers.TryGetValues("Access-Control-Allow-Origin", out var origins));
+        Assert.Contains("http://localhost:5173", origins);
+    }
+
+    [Fact]
     public async Task InvalidRegisterAndLogin_ReturnConsistentErrorBody()
     {
         using var client = _factory.CreateClient();

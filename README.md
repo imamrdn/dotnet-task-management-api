@@ -133,6 +133,15 @@ Production  -> appsettings.json + appsettings.Production.json + environment vari
 
 The local launch profiles in `TaskManagement.Api/Properties/launchSettings.json` run with `ASPNETCORE_ENVIRONMENT=Development`. Production should provide secrets through environment variables, for example `ConnectionStrings__DefaultConnection` and `Jwt__Key`.
 
+Development CORS allows common local frontend origins:
+
+```text
+http://localhost:3000
+http://localhost:5173
+```
+
+Production CORS starts with an empty origin list. Set real frontend domains through configuration or environment variables before exposing the API to a browser client.
+
 Apply EF Core migrations:
 
 ```bash
@@ -229,10 +238,12 @@ Completed so far:
 - Pagination metadata
 - Search, filter, and sorting for task list
 - Local secret configuration with .NET User Secrets
+- Environment-specific configuration
+- CORS configuration for browser clients
 
 Next phase:
 
-- Environment-specific configuration
+- Swagger / OpenAPI review
 
 ## API Response
 

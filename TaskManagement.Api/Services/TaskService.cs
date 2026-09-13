@@ -24,7 +24,8 @@ public class TaskService : ITaskService
         string? search,
         bool? isCompleted,
         string? sortBy,
-        string? sortDirection)
+        string? sortDirection,
+        CancellationToken cancellationToken = default)
     {
         IQueryable<TaskItem> query = _dbContext.Tasks
             .AsNoTracking()
@@ -45,7 +46,7 @@ public class TaskService : ITaskService
             query = query.Where(task => task.IsCompleted == isCompleted);
         }
 
-        var totalItems = await query.CountAsync();
+        var totalItems = await query.CountAsync(cancellationToken);
         var totalPages = (int)Math.Ceiling(totalItems / (double)limit);
         var isDescending = string.Equals(sortDirection, "desc", StringComparison.OrdinalIgnoreCase);
 
@@ -74,7 +75,7 @@ public class TaskService : ITaskService
             ));
 
         // ToListAsync materializes the query; the result is now an in-memory IEnumerable.
-        IEnumerable<TaskResponse> items = await responseQuery.ToListAsync();
+        IEnumerable<TaskResponse> items = await responseQuery.ToListAsync(cancellationToken);
 
         return new PaginatedResponse<TaskResponse>(
             items.ToList(),
@@ -85,14 +86,14 @@ public class TaskService : ITaskService
         );
     }
 
-    public async Task<List<TaskWithOwnerResponse>> GetAllTasksWithOwnersAsync()
+    public async Task<List<TaskWithOwnerResponse>> GetAllTasksWithOwnersAsync(CancellationToken cancellationToken = default)
     {
         var tasks = await _dbContext.Tasks
             .AsNoTracking()
             .WhereActive()
             .Include(task => task.User)
             .OrderBy(task => task.Id)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return tasks
             .Select(task => new TaskWithOwnerResponse(
@@ -108,7 +109,9 @@ public class TaskService : ITaskService
             .ToList();
     }
 
-    public async Task<List<TaskSummaryByUserResponse>> GetTaskSummaryByUserAsync(int? minimumTasks)
+    public async Task<List<TaskSummaryByUserResponse>> GetTaskSummaryByUserAsync(
+        int? minimumTasks,
+        CancellationToken cancellationToken = default)
     {
         var query = _dbContext.Tasks
             .AsNoTracking()
@@ -135,10 +138,12 @@ public class TaskService : ITaskService
                 group.Count(task => task.IsCompleted),
                 group.Count(task => !task.IsCompleted)
             ))
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
     }
 
-    public async Task<List<TopTaskOwnerResponse>> GetTopTaskOwnersAsync(int limit)
+    public async Task<List<TopTaskOwnerResponse>> GetTopTaskOwnersAsync(
+        int limit,
+        CancellationToken cancellationToken = default)
     {
         return await _dbContext.Tasks
             .AsNoTracking()
@@ -158,15 +163,18 @@ public class TaskService : ITaskService
                 group.Key.Email,
                 group.Count()
             ))
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
     }
 
-    public async Task<TaskResponse?> GetTaskByIdAsync(int userId, int id)
+    public async Task<TaskResponse?> GetTaskByIdAsync(
+        int userId,
+        int id,
+        CancellationToken cancellationToken = default)
     {
         var task = await _dbContext.Tasks
             .AsNoTracking()
             .WhereActive()
-            .FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId);
+            .FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId, cancellationToken);
         if (task is null)
         {
             return null;
@@ -180,7 +188,10 @@ public class TaskService : ITaskService
         );
     }
     
-    public async Task<TaskResponse> CreateTaskAsync(int userId, CreateTaskRequest request)
+    public async Task<TaskResponse> CreateTaskAsync(
+        int userId,
+        CreateTaskRequest request,
+        CancellationToken cancellationToken = default)
     {
         var task = new TaskItem
         {
@@ -192,7 +203,7 @@ public class TaskService : ITaskService
         };
 
         _dbContext.Tasks.Add(task);
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Task {TaskId} created by user {UserId}", task.Id, userId);
 
         return new TaskResponse(
@@ -203,11 +214,15 @@ public class TaskService : ITaskService
         );
     }
 
-    public async Task<TaskResponse?> UpdateTaskAsync(int userId, int id, UpdateTaskRequest request)
+    public async Task<TaskResponse?> UpdateTaskAsync(
+        int userId,
+        int id,
+        UpdateTaskRequest request,
+        CancellationToken cancellationToken = default)
     {
         var task = await _dbContext.Tasks
             .WhereActive()
-            .FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId);
+            .FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId, cancellationToken);
         if (task is null)
         {
             return null;
@@ -218,7 +233,7 @@ public class TaskService : ITaskService
         task.IsCompleted = request.IsCompleted;
         task.UpdatedAt = DateTime.UtcNow;
 
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Task {TaskId} updated by user {UserId}", task.Id, userId);
 
         return new TaskResponse(
@@ -229,11 +244,14 @@ public class TaskService : ITaskService
         );
     }
 
-    public async Task<bool> DeleteTaskAsync(int userId, int id)
+    public async Task<bool> DeleteTaskAsync(
+        int userId,
+        int id,
+        CancellationToken cancellationToken = default)
     {
         var task = await _dbContext.Tasks
             .WhereActive()
-            .FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId);
+            .FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId, cancellationToken);
         if (task is null)
         {
             return false;
@@ -241,7 +259,7 @@ public class TaskService : ITaskService
 
         task.IsDeleted = true;
         task.DeletedAt = DateTime.UtcNow;
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Task {TaskId} deleted by user {UserId}", id, userId);
 
         return true;

@@ -11,12 +11,13 @@ public interface ITaskService
         string? search,
         bool? isCompleted,
         string? sortBy,
-        string? sortDirection);
-    Task<List<TaskWithOwnerResponse>> GetAllTasksWithOwnersAsync();
-    Task<List<TaskSummaryByUserResponse>> GetTaskSummaryByUserAsync(int? minimumTasks);
-    Task<List<TopTaskOwnerResponse>> GetTopTaskOwnersAsync(int limit);
-    Task<TaskResponse?> GetTaskByIdAsync(int userId, int id);
-    Task<TaskResponse> CreateTaskAsync(int userId, CreateTaskRequest request);
-    Task<TaskResponse?> UpdateTaskAsync(int userId, int id, UpdateTaskRequest request);
-    Task<bool> DeleteTaskAsync(int userId, int id);
+        string? sortDirection,
+        CancellationToken cancellationToken = default);
+    Task<List<TaskWithOwnerResponse>> GetAllTasksWithOwnersAsync(CancellationToken cancellationToken = default);
+    Task<List<TaskSummaryByUserResponse>> GetTaskSummaryByUserAsync(int? minimumTasks, CancellationToken cancellationToken = default);
+    Task<List<TopTaskOwnerResponse>> GetTopTaskOwnersAsync(int limit, CancellationToken cancellationToken = default);
+    Task<TaskResponse?> GetTaskByIdAsync(int userId, int id, CancellationToken cancellationToken = default);
+    Task<TaskResponse> CreateTaskAsync(int userId, CreateTaskRequest request, CancellationToken cancellationToken = default);
+    Task<TaskResponse?> UpdateTaskAsync(int userId, int id, UpdateTaskRequest request, CancellationToken cancellationToken = default);
+    Task<bool> DeleteTaskAsync(int userId, int id, CancellationToken cancellationToken = default);
 }

@@ -19,6 +19,11 @@ public sealed class PostgresWebApplicationFactory : WebApplicationFactory<Progra
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
+        builder.ConfigureAppConfiguration(configuration =>
+        {
+            configuration.AddUserSecrets<Program>(optional: true);
+            configuration.AddEnvironmentVariables();
+        });
         builder.ConfigureServices((context, services) =>
         {
             var sourceConnectionString = context.Configuration.GetConnectionString("DefaultConnection")

@@ -111,20 +111,14 @@ Create a PostgreSQL database:
 CREATE DATABASE task_management_db;
 ```
 
-Configure the connection string in `TaskManagement.Api/appsettings.json`:
+Configure local secrets with .NET User Secrets:
 
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Port=5432;Database=task_management_db;Username=YOUR_USERNAME;Password=YOUR_PASSWORD"
-  },
-  "Jwt": {
-    "Key": "super-secret-key-minimal-32-characters",
-    "Issuer": "TaskManagement.Api",
-    "Audience": "TaskManagement.Api"
-  }
-}
+```bash
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=task_management_db;Username=YOUR_USERNAME;Password=YOUR_PASSWORD" --project TaskManagement.Api
+dotnet user-secrets set "Jwt:Key" "your-local-secret-key-minimal-32-characters" --project TaskManagement.Api
 ```
+
+`appsettings.json` keeps only safe shared values. Local secrets such as database passwords and JWT signing keys should stay in User Secrets or environment variables, not in Git.
 
 Apply EF Core migrations:
 
@@ -209,10 +203,11 @@ Completed so far:
 - Database seeding with demo admin, demo user, and demo tasks
 - Pagination metadata
 - Search, filter, and sorting for task list
+- Local secret configuration with .NET User Secrets
 
 Next phase:
 
-- Better validation and CI automation
+- Environment-specific configuration
 
 ## API Response
 
@@ -241,6 +236,8 @@ Run all unit tests:
 ```bash
 dotnet test TaskManagement.slnx
 ```
+
+Integration tests read the database connection string from environment variables or User Secrets. Use the same `ConnectionStrings:DefaultConnection` setup from Local Setup before running the full test suite locally.
 
 Run tests and collect code coverage:
 

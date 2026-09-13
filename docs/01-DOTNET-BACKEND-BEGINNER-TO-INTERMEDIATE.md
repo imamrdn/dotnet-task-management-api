@@ -1093,12 +1093,12 @@ Catatan:
 
 - [x] PUT vs PATCH (`PUT /api/tasks/{id}` untuk update penuh; `PATCH /api/tasks/{id}/completion` untuk update status sebagian)
 - [ ] Idempotency (`GET`, `PUT`, dan `PATCH /completion` aman diulang; `POST` tidak idempotent. `Idempotency-Key` belum relevan sebelum ada operasi kritikal seperti payment/checkout)
-- [ ] Resource naming
-- [ ] HTTP semantics
-- [ ] ProblemDetails
-- [ ] Refresh Token
-- [ ] Refresh-token rotation
-- [ ] Token revocation
+- [x] Resource naming (endpoint utama memakai noun/resource; Bruno dipisah menjadi admin/users, admin/tasks, tasks, auth, _flows, dan _tools)
+- [x] HTTP semantics (`GET`, `POST`, `PUT`, `PATCH`, `DELETE` memakai status code sesuai: 200, 201, 204, 400, 401, 403, 404)
+- [ ] ProblemDetails (dipahami sebagai standar error response; project saat ini tetap memakai `ApiResponse<T>` agar kontrak response konsisten selama belajar)
+- [x] Refresh Token (`/api/auth/login` mengembalikan access token + refresh token; refresh token disimpan sebagai hash di database)
+- [x] Refresh-token rotation (`POST /api/auth/refresh` mencabut refresh token lama dan membuat refresh token baru)
+- [x] Token revocation (`POST /api/auth/logout` mencabut refresh token)
 - [ ] Policy-based authorization
 
 ## Dipindahkan ke File 02 / Bukan Blocker File 01

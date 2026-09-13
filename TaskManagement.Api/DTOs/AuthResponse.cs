@@ -1,5 +1,6 @@
 namespace TaskManagement.Api.DTOs;
 
 public record AuthResponse(
-    string Token
+    string Token,
+    string RefreshToken
 );

@@ -93,8 +93,58 @@ public class AuthServiceTests
         var response = await service.LoginAsync(new LoginRequest(user.Email, "secret123"));
         var token = new JwtSecurityTokenHandler().ReadJwtToken(response.Token);
 
+        Assert.False(string.IsNullOrWhiteSpace(response.RefreshToken));
+        Assert.Single(context.RefreshTokens);
         Assert.Contains(token.Claims, claim => claim.Type == ClaimTypes.Role && claim.Value == "Admin");
         Assert.Contains(token.Claims, claim => claim.Type == ClaimTypes.Email && claim.Value == user.Email);
+    }
+
+    [Fact]
+    public async Task RefreshAsync_ValidRefreshToken_RotatesToken()
+    {
+        await using var context = TestDbContextFactory.Create();
+        var user = new User { Id = 7, Name = "User", Email = "user@mail.com", Role = "User" };
+        user.PasswordHash = new PasswordHasher<User>().HashPassword(user, "secret123");
+        context.Users.Add(user);
+        await context.SaveChangesAsync();
+        var service = CreateService(context);
+        var login = await service.LoginAsync(new LoginRequest(user.Email, "secret123"));
+
+        var refresh = await service.RefreshAsync(new RefreshTokenRequest(login.RefreshToken));
+
+        Assert.NotEqual(login.RefreshToken, refresh.RefreshToken);
+        Assert.Equal(2, context.RefreshTokens.Count());
+        Assert.Equal(1, context.RefreshTokens.Count(token => token.RevokedAt != null));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            service.RefreshAsync(new RefreshTokenRequest(login.RefreshToken)));
+    }
+
+    [Fact]
+    public async Task RefreshAsync_InvalidRefreshToken_ThrowsUnauthorized()
+    {
+        await using var context = TestDbContextFactory.Create();
+        var service = CreateService(context);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            service.RefreshAsync(new RefreshTokenRequest("invalid-refresh-token")));
+    }
+
+    [Fact]
+    public async Task LogoutAsync_RevokesRefreshToken()
+    {
+        await using var context = TestDbContextFactory.Create();
+        var user = new User { Id = 7, Name = "User", Email = "user@mail.com", Role = "User" };
+        user.PasswordHash = new PasswordHasher<User>().HashPassword(user, "secret123");
+        context.Users.Add(user);
+        await context.SaveChangesAsync();
+        var service = CreateService(context);
+        var login = await service.LoginAsync(new LoginRequest(user.Email, "secret123"));
+
+        await service.LogoutAsync(new LogoutRequest(login.RefreshToken));
+
+        Assert.NotNull(Assert.Single(context.RefreshTokens).RevokedAt);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            service.RefreshAsync(new RefreshTokenRequest(login.RefreshToken)));
     }
 
     [Theory]
@@ -162,6 +212,7 @@ public class AuthServiceTests
             Assert.DoesNotContain("secret123", entry.Message);
             Assert.DoesNotContain("wrong-password", entry.Message);
             Assert.DoesNotContain(response.Token, entry.Message);
+            Assert.DoesNotContain(response.RefreshToken, entry.Message);
         });
     }
 

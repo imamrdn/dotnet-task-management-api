@@ -32,7 +32,7 @@ public class DatabaseSeeder
         await using var transaction = await _dbContext.Database.BeginTransactionAsync();
 
         await _dbContext.Database.ExecuteSqlRawAsync(
-            "TRUNCATE TABLE tasks, users RESTART IDENTITY CASCADE;");
+            "TRUNCATE TABLE refresh_tokens, tasks, users RESTART IDENTITY CASCADE;");
 
         await SeedAsync();
         await transaction.CommitAsync();

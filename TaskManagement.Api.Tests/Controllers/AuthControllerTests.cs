@@ -42,6 +42,11 @@ public class AuthControllerTests
 
         Assert.IsType<OkObjectResult>(await controller.Login(
             new LoginRequest("user@mail.com", "secret123")));
+        var login = Assert.IsType<OkObjectResult>(await controller.Login(
+            new LoginRequest("user@mail.com", "secret123")));
+        var auth = Assert.IsType<ApiResponse<AuthResponse>>(login.Value).Data!;
+        Assert.IsType<OkObjectResult>(await controller.Refresh(new RefreshTokenRequest(auth.RefreshToken)));
+        Assert.IsType<OkObjectResult>(await controller.Logout(new LogoutRequest(auth.RefreshToken)));
         await Assert.ThrowsAsync<ArgumentException>(() => controller.Login(
             new LoginRequest("", "secret123")));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => controller.Login(

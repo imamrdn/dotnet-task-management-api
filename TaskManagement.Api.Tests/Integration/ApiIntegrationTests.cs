@@ -189,6 +189,41 @@ public class ApiIntegrationTests : IClassFixture<PostgresWebApplicationFactory>
     }
 
     [Fact]
+    public async Task RefreshAndLogout_RotateAndRevokeRefreshToken()
+    {
+        using var client = _factory.CreateClient();
+
+        var loginResponse = await client.PostAsJsonAsync(
+            "/api/auth/login",
+            new LoginRequest("user@mail.com", "secret123"));
+        var login = (await loginResponse.Content.ReadFromJsonAsync<ApiResponse<AuthResponse>>())!.Data!;
+
+        var refreshResponse = await client.PostAsJsonAsync(
+            "/api/auth/refresh",
+            new RefreshTokenRequest(login.RefreshToken));
+        var refresh = (await refreshResponse.Content.ReadFromJsonAsync<ApiResponse<AuthResponse>>())!.Data!;
+
+        var reusedResponse = await client.PostAsJsonAsync(
+            "/api/auth/refresh",
+            new RefreshTokenRequest(login.RefreshToken));
+
+        var logoutResponse = await client.PostAsJsonAsync(
+            "/api/auth/logout",
+            new LogoutRequest(refresh.RefreshToken));
+
+        var revokedResponse = await client.PostAsJsonAsync(
+            "/api/auth/refresh",
+            new RefreshTokenRequest(refresh.RefreshToken));
+
+        Assert.Equal(HttpStatusCode.OK, loginResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, refreshResponse.StatusCode);
+        Assert.NotEqual(login.RefreshToken, refresh.RefreshToken);
+        Assert.Equal(HttpStatusCode.Unauthorized, reusedResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, logoutResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, revokedResponse.StatusCode);
+    }
+
+    [Fact]
     public async Task UsersEndpoint_EnforcesAdminRole()
     {
         using var userClient = await CreateAuthenticatedClientAsync("user@mail.com");

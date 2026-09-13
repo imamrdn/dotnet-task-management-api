@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -75,7 +76,6 @@ public class AuthService
         }
 
         var user = await _dbContext.Users
-            .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Email == request.Email);
 
         if (user == null)
@@ -104,8 +104,80 @@ public class AuthService
         }
 
         var token = GenerateJwtToken(user);
+        var refreshToken = GenerateRefreshToken();
+        _dbContext.RefreshTokens.Add(new RefreshToken
+        {
+            TokenHash = HashRefreshToken(refreshToken),
+            ExpiresAt = DateTime.UtcNow.AddDays(7),
+            CreatedAt = DateTime.UtcNow,
+            UserId = user.Id
+        });
+        await _dbContext.SaveChangesAsync();
         _logger.LogInformation("User {UserId} logged in", user.Id);
-        return new AuthResponse(token);
+        return new AuthResponse(token, refreshToken);
+    }
+
+    public async Task<AuthResponse> RefreshAsync(RefreshTokenRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.RefreshToken))
+        {
+            throw new ArgumentException("Refresh token is required");
+        }
+
+        var tokenHash = HashRefreshToken(request.RefreshToken);
+        var refreshToken = await _dbContext.RefreshTokens
+            .Include(token => token.User)
+            .FirstOrDefaultAsync(token => token.TokenHash == tokenHash);
+
+        if (refreshToken is null || !refreshToken.IsActive)
+        {
+            _logger.LogWarning("Refresh token rejected");
+            throw new UnauthorizedAccessException("Invalid refresh token");
+        }
+
+        var newRefreshToken = GenerateRefreshToken();
+        var newRefreshTokenHash = HashRefreshToken(newRefreshToken);
+
+        refreshToken.RevokedAt = DateTime.UtcNow;
+        refreshToken.ReplacedByTokenHash = newRefreshTokenHash;
+
+        _dbContext.RefreshTokens.Add(new RefreshToken
+        {
+            TokenHash = newRefreshTokenHash,
+            ExpiresAt = DateTime.UtcNow.AddDays(7),
+            CreatedAt = DateTime.UtcNow,
+            UserId = refreshToken.UserId
+        });
+
+        await _dbContext.SaveChangesAsync();
+
+        var accessToken = GenerateJwtToken(refreshToken.User);
+        _logger.LogInformation("Refresh token rotated for user {UserId}", refreshToken.UserId);
+        return new AuthResponse(accessToken, newRefreshToken);
+    }
+
+    public async Task LogoutAsync(LogoutRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.RefreshToken))
+        {
+            throw new ArgumentException("Refresh token is required");
+        }
+
+        var tokenHash = HashRefreshToken(request.RefreshToken);
+        var refreshToken = await _dbContext.RefreshTokens
+            .FirstOrDefaultAsync(token => token.TokenHash == tokenHash);
+
+        if (refreshToken is null)
+        {
+            return;
+        }
+
+        if (refreshToken.RevokedAt is null)
+        {
+            refreshToken.RevokedAt = DateTime.UtcNow;
+            await _dbContext.SaveChangesAsync();
+            _logger.LogInformation("Refresh token revoked for user {UserId}", refreshToken.UserId);
+        }
     }
 
     private string GenerateJwtToken(User user)
@@ -139,5 +211,17 @@ public class AuthService
         );
 
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    private static string GenerateRefreshToken()
+    {
+        var randomBytes = RandomNumberGenerator.GetBytes(64);
+        return Convert.ToBase64String(randomBytes);
+    }
+
+    private static string HashRefreshToken(string refreshToken)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(refreshToken));
+        return Convert.ToHexString(bytes);
     }
 }

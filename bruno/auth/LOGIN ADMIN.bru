@@ -28,4 +28,8 @@ script:post-response {
   if (res.getStatus() === 200 && body.data?.token) {
     bru.setEnvVar("authToken", body.data.token);
   }
+
+  if (res.getStatus() === 200 && body.data?.refreshToken) {
+    bru.setEnvVar("refreshToken", body.data.refreshToken);
+  }
 }

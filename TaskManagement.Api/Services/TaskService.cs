@@ -26,7 +26,7 @@ public class TaskService : ITaskService
         string? sortBy,
         string? sortDirection)
     {
-        var query = _dbContext.Tasks
+        IQueryable<TaskItem> query = _dbContext.Tasks
             .AsNoTracking()
             .WhereActive()
             .Where(task => task.UserId == userId);
@@ -62,7 +62,8 @@ public class TaskService : ITaskService
                 : query.OrderBy(task => task.Id)
         };
 
-        var items = await query
+        // Everything above stays as IQueryable so EF Core can translate it to SQL.
+        IQueryable<TaskResponse> responseQuery = query
             .Skip((page - 1) * limit)
             .Take(limit)
             .Select(task => new TaskResponse(
@@ -70,11 +71,13 @@ public class TaskService : ITaskService
                 task.Title,
                 task.Description,
                 task.IsCompleted
-            ))
-            .ToListAsync();
+            ));
+
+        // ToListAsync materializes the query; the result is now an in-memory IEnumerable.
+        IEnumerable<TaskResponse> items = await responseQuery.ToListAsync();
 
         return new PaginatedResponse<TaskResponse>(
-            items,
+            items.ToList(),
             page,
             limit,
             totalItems,

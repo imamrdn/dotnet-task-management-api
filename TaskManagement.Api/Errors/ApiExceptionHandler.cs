@@ -5,9 +5,18 @@ namespace TaskManagement.Api.Errors;
 
 public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : IExceptionHandler
 {
+    private const int ClientClosedRequestStatusCode = 499;
+
     public async ValueTask<bool> TryHandleAsync(
         HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
     {
+        if (exception is OperationCanceledException && httpContext.RequestAborted.IsCancellationRequested)
+        {
+            logger.LogInformation("Request was canceled by the client");
+            httpContext.Response.StatusCode = ClientClosedRequestStatusCode;
+            return true;
+        }
+
         var (statusCode, message) = exception switch
         {
             ArgumentException => (StatusCodes.Status400BadRequest, exception.Message),

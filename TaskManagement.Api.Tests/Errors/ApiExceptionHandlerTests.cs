@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using TaskManagement.Api.DTOs;
 using TaskManagement.Api.Errors;
@@ -32,5 +33,27 @@ public class ApiExceptionHandlerTests
         Assert.False(response!.Success);
         Assert.Equal(expectedMessage, response.Message);
         Assert.Null(response.Data);
+    }
+
+    [Fact]
+    public async Task TryHandleAsync_RequestAbortedCancellation_ReturnsClientClosedRequestWithoutErrorBody()
+    {
+        var context = new DefaultHttpContext();
+        context.Response.Body = new MemoryStream();
+        using var requestAbortedSource = new CancellationTokenSource();
+        await requestAbortedSource.CancelAsync();
+        context.RequestAborted = requestAbortedSource.Token;
+        var logger = new TestLogger<ApiExceptionHandler>();
+        var handler = new ApiExceptionHandler(logger);
+
+        var handled = await handler.TryHandleAsync(
+            context,
+            new OperationCanceledException(requestAbortedSource.Token),
+            CancellationToken.None);
+
+        Assert.True(handled);
+        Assert.Equal(499, context.Response.StatusCode);
+        Assert.Equal(0, context.Response.Body.Length);
+        Assert.DoesNotContain(logger.Entries, entry => entry.Level == LogLevel.Error);
     }
 }

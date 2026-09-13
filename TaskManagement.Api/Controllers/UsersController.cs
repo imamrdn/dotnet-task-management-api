@@ -25,6 +25,14 @@ public class UsersController : ControllerBase
         return Ok(ApiResponse<List<UserResponse>>.Ok("Users retrieved successfully", users));
     }
 
+    [HttpGet("without-tasks")]
+    public async Task<IActionResult> GetUsersWithoutActiveTasks()
+    {
+        var users = await _userService.GetUsersWithoutActiveTasksAsync();
+
+        return Ok(ApiResponse<List<UserResponse>>.Ok("Users without active tasks retrieved successfully", users));
+    }
+
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetUserById(int id)
     {

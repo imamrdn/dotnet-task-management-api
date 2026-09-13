@@ -30,6 +30,22 @@ public class UserService : IUserService
             .ToListAsync();
     }
 
+    public async Task<List<UserResponse>> GetUsersWithoutActiveTasksAsync()
+    {
+        return await _dbContext.Users
+            .AsNoTracking()
+            .Where(user => !_dbContext.Tasks.Any(task =>
+                task.UserId == user.Id &&
+                !task.IsDeleted))
+            .OrderBy(user => user.Id)
+            .Select(user => new UserResponse(
+                user.Id,
+                user.Name,
+                user.Email
+            ))
+            .ToListAsync();
+    }
+
     public async Task<UserResponse?> GetUserByIdAsync(int id)
     {
         var user = await _dbContext.Users.FindAsync(id);

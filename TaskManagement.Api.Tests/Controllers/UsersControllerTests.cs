@@ -19,6 +19,21 @@ public class UsersControllerTests
     }
 
     [Fact]
+    public async Task GetUsersWithoutActiveTasks_ReturnsServiceResponse()
+    {
+        var response = new List<UserResponse>
+        {
+            new(3, "Empty", "empty@mail.com")
+        };
+        _service.Setup(service => service.GetUsersWithoutActiveTasksAsync()).ReturnsAsync(response);
+
+        var result = await CreateController().GetUsersWithoutActiveTasks();
+
+        Assert.Same(response, Assert.IsType<ApiResponse<List<UserResponse>>>(
+            Assert.IsType<OkObjectResult>(result).Value).Data);
+    }
+
+    [Fact]
     public async Task GetUserById_ReturnsExpectedStatus()
     {
         _service.Setup(service => service.GetUserByIdAsync(1))

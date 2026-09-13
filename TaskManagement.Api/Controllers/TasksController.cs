@@ -66,6 +66,20 @@ public class TasksController : ControllerBase
         return Ok(ApiResponse<List<TaskSummaryByUserResponse>>.Ok("Task summary retrieved successfully", summaries));
     }
 
+    [Authorize(Roles = "Admin")]
+    [HttpGet("admin/top-users")]
+    public async Task<IActionResult> GetTopTaskOwners(int limit = 5)
+    {
+        if (limit <= 0)
+        {
+            return BadRequest(ApiResponse<object>.Error("Limit must be greater than 0"));
+        }
+
+        var owners = await _taskService.GetTopTaskOwnersAsync(limit);
+
+        return Ok(ApiResponse<List<TopTaskOwnerResponse>>.Ok("Top task owners retrieved successfully", owners));
+    }
+
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetTaskById(int id)
     {

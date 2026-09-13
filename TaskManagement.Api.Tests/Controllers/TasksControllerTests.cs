@@ -79,6 +79,33 @@ public class TasksControllerTests
     }
 
     [Fact]
+    public async Task GetTopTaskOwners_ReturnsServiceResponse()
+    {
+        var response = new List<TopTaskOwnerResponse>
+        {
+            new(7, "User", "user@mail.com", 3)
+        };
+        _service.Setup(service => service.GetTopTaskOwnersAsync(3)).ReturnsAsync(response);
+
+        var result = await CreateController().GetTopTaskOwners(3);
+
+        Assert.Same(response, Assert.IsType<ApiResponse<List<TopTaskOwnerResponse>>>(
+            Assert.IsType<OkObjectResult>(result).Value).Data);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task GetTopTaskOwners_InvalidLimit_ReturnsBadRequest(int limit)
+    {
+        var result = await CreateController().GetTopTaskOwners(limit);
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal("Limit must be greater than 0",
+            Assert.IsType<ApiResponse<object>>(badRequest.Value).Message);
+    }
+
+    [Fact]
     public async Task GetTaskById_ReturnsExpectedStatus()
     {
         var task = new TaskResponse(1, "Title", "Description", false);

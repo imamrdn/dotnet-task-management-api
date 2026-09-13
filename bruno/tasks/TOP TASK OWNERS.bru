@@ -1,0 +1,19 @@
+meta {
+  name: TOP TASK OWNERS
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/api/tasks/admin/top-users?limit=3
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+headers {
+  Accept: application/json
+}

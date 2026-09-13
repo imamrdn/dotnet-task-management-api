@@ -127,6 +127,31 @@ public class TaskServiceTests
     }
 
     [Fact]
+    public async Task GetTopTaskOwnersAsync_ReturnsHighestActiveTaskOwners()
+    {
+        await using var context = TestDbContextFactory.Create();
+        context.Users.AddRange(
+            new User { Id = 1, Name = "Admin", Email = "admin@mail.com" },
+            new User { Id = 2, Name = "User", Email = "user@mail.com" },
+            new User { Id = 3, Name = "Reviewer", Email = "reviewer@mail.com" });
+        context.Tasks.AddRange(
+            new TaskItem { Id = 1, UserId = 1, Title = "Admin 1" },
+            new TaskItem { Id = 2, UserId = 1, Title = "Admin 2" },
+            new TaskItem { Id = 3, UserId = 1, Title = "Admin deleted", IsDeleted = true },
+            new TaskItem { Id = 4, UserId = 2, Title = "User 1" },
+            new TaskItem { Id = 5, UserId = 2, Title = "User 2" },
+            new TaskItem { Id = 6, UserId = 2, Title = "User 3" },
+            new TaskItem { Id = 7, UserId = 3, Title = "Reviewer 1" });
+        await context.SaveChangesAsync();
+
+        var result = await CreateService(context).GetTopTaskOwnersAsync(2);
+
+        Assert.Equal(2, result.Count);
+        Assert.Equal(new TopTaskOwnerResponse(2, "User", "user@mail.com", 3), result[0]);
+        Assert.Equal(new TopTaskOwnerResponse(1, "Admin", "admin@mail.com", 2), result[1]);
+    }
+
+    [Fact]
     public async Task CreateTaskAsync_AssignsOwnerAndDefaultsToIncomplete()
     {
         await using var context = TestDbContextFactory.Create();

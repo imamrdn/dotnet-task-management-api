@@ -36,6 +36,24 @@ public class UserServiceTests
         Assert.Null(await service.GetUserByIdAsync(99));
     }
 
+    [Fact]
+    public async Task GetUsersWithoutActiveTasksAsync_ReturnsUsersMatchedBySubquery()
+    {
+        await using var context = TestDbContextFactory.Create();
+        context.Users.AddRange(
+            new User { Id = 1, Name = "Active", Email = "active@mail.com" },
+            new User { Id = 2, Name = "Deleted Only", Email = "deleted@mail.com" },
+            new User { Id = 3, Name = "Empty", Email = "empty@mail.com" });
+        context.Tasks.AddRange(
+            new TaskItem { Id = 1, UserId = 1, Title = "Active task" },
+            new TaskItem { Id = 2, UserId = 2, Title = "Deleted task", IsDeleted = true });
+        await context.SaveChangesAsync();
+
+        var result = await CreateService(context).GetUsersWithoutActiveTasksAsync();
+
+        Assert.Equal([2, 3], result.Select(user => user.Id));
+    }
+
     [Theory]
     [InlineData("", "user@mail.com", "secret123", "Name is required")]
     [InlineData("User", "", "secret123", "Email is required")]

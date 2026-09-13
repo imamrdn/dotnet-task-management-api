@@ -1,0 +1,19 @@
+meta {
+  name: USERS WITHOUT TASKS
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/api/users/without-tasks
+  body: none
+  auth: bearer
+}
+
+headers {
+  Accept: application/json
+}
+
+auth:bearer {
+  token: {{authToken}}
+}

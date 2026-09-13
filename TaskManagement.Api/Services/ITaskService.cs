@@ -14,6 +14,7 @@ public interface ITaskService
         string? sortDirection);
     Task<List<TaskWithOwnerResponse>> GetAllTasksWithOwnersAsync();
     Task<List<TaskSummaryByUserResponse>> GetTaskSummaryByUserAsync(int? minimumTasks);
+    Task<List<TopTaskOwnerResponse>> GetTopTaskOwnersAsync(int limit);
     Task<TaskResponse?> GetTaskByIdAsync(int userId, int id);
     Task<TaskResponse> CreateTaskAsync(int userId, CreateTaskRequest request);
     Task<TaskResponse?> UpdateTaskAsync(int userId, int id, UpdateTaskRequest request);

@@ -203,6 +203,26 @@ public class ApiIntegrationTests : IClassFixture<PostgresWebApplicationFactory>
     }
 
     [Fact]
+    public async Task UsersWithoutTasksEndpoint_EnforcesAdminRoleAndReturnsSubqueryResult()
+    {
+        using var userClient = await CreateAuthenticatedClientAsync("user@mail.com");
+        using var adminClient = await CreateAuthenticatedClientAsync("admin@mail.com");
+
+        var createResponse = await adminClient.PostAsJsonAsync(
+            "/api/users", new CreateUserRequest("Empty User", "empty@mail.com", "secret123"));
+        var forbiddenResponse = await userClient.GetAsync("/api/users/without-tasks");
+        var adminResponse = await adminClient.GetAsync("/api/users/without-tasks");
+        var result = await adminResponse.Content.ReadFromJsonAsync<ApiResponse<List<UserResponse>>>();
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, forbiddenResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, adminResponse.StatusCode);
+        Assert.Contains(result!.Data!, user => user.Email == "empty@mail.com");
+        Assert.DoesNotContain(result.Data!, user => user.Email == "admin@mail.com");
+        Assert.DoesNotContain(result.Data!, user => user.Email == "user@mail.com");
+    }
+
+    [Fact]
     public async Task AdminTaskOwnerEndpoint_EnforcesAdminRoleAndReturnsOwnerData()
     {
         using var userClient = await CreateAuthenticatedClientAsync("user@mail.com");
@@ -253,6 +273,36 @@ public class ApiIntegrationTests : IClassFixture<PostgresWebApplicationFactory>
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("Minimum tasks must be greater than 0",
+            (await response.Content.ReadFromJsonAsync<ApiResponse<object>>())!.Message);
+    }
+
+    [Fact]
+    public async Task AdminTopTaskOwnersEndpoint_EnforcesAdminRoleAndReturnsLimitedOwners()
+    {
+        using var userClient = await CreateAuthenticatedClientAsync("user@mail.com");
+        using var adminClient = await CreateAuthenticatedClientAsync("admin@mail.com");
+
+        var forbiddenResponse = await userClient.GetAsync("/api/tasks/admin/top-users?limit=1");
+        var adminResponse = await adminClient.GetAsync("/api/tasks/admin/top-users?limit=1");
+        var result = await adminResponse.Content.ReadFromJsonAsync<ApiResponse<List<TopTaskOwnerResponse>>>();
+
+        Assert.Equal(HttpStatusCode.Forbidden, forbiddenResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, adminResponse.StatusCode);
+
+        var owner = Assert.Single(result!.Data!);
+        Assert.Equal("admin@mail.com", owner.Email);
+        Assert.Equal(3, owner.TotalTasks);
+    }
+
+    [Fact]
+    public async Task AdminTopTaskOwnersEndpoint_RejectsInvalidLimit()
+    {
+        using var adminClient = await CreateAuthenticatedClientAsync("admin@mail.com");
+
+        var response = await adminClient.GetAsync("/api/tasks/admin/top-users?limit=0");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("Limit must be greater than 0",
             (await response.Content.ReadFromJsonAsync<ApiResponse<object>>())!.Message);
     }
 

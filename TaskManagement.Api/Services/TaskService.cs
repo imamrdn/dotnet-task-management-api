@@ -133,6 +133,29 @@ public class TaskService : ITaskService
             .ToListAsync();
     }
 
+    public async Task<List<TopTaskOwnerResponse>> GetTopTaskOwnersAsync(int limit)
+    {
+        return await _dbContext.Tasks
+            .AsNoTracking()
+            .Where(task => !task.IsDeleted)
+            .GroupBy(task => new
+            {
+                task.UserId,
+                task.User.Name,
+                task.User.Email
+            })
+            .OrderByDescending(group => group.Count())
+            .ThenBy(group => group.Key.UserId)
+            .Take(limit)
+            .Select(group => new TopTaskOwnerResponse(
+                group.Key.UserId,
+                group.Key.Name,
+                group.Key.Email,
+                group.Count()
+            ))
+            .ToListAsync();
+    }
+
     public async Task<TaskResponse?> GetTaskByIdAsync(int userId, int id)
     {
         var task = await _dbContext.Tasks

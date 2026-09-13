@@ -13,6 +13,7 @@ public interface ITaskService
         string? sortBy,
         string? sortDirection);
     Task<List<TaskWithOwnerResponse>> GetAllTasksWithOwnersAsync();
+    Task<List<TaskSummaryByUserResponse>> GetTaskSummaryByUserAsync(int? minimumTasks);
     Task<TaskResponse?> GetTaskByIdAsync(int userId, int id);
     Task<TaskResponse> CreateTaskAsync(int userId, CreateTaskRequest request);
     Task<TaskResponse?> UpdateTaskAsync(int userId, int id, UpdateTaskRequest request);

@@ -52,6 +52,33 @@ public class TasksControllerTests
     }
 
     [Fact]
+    public async Task GetTaskSummaryByUser_ReturnsServiceResponse()
+    {
+        var response = new List<TaskSummaryByUserResponse>
+        {
+            new(7, "User", "user@mail.com", 3, 2, 1)
+        };
+        _service.Setup(service => service.GetTaskSummaryByUserAsync(2)).ReturnsAsync(response);
+
+        var result = await CreateController().GetTaskSummaryByUser(2);
+
+        Assert.Same(response, Assert.IsType<ApiResponse<List<TaskSummaryByUserResponse>>>(
+            Assert.IsType<OkObjectResult>(result).Value).Data);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task GetTaskSummaryByUser_InvalidMinimumTasks_ReturnsBadRequest(int minimumTasks)
+    {
+        var result = await CreateController().GetTaskSummaryByUser(minimumTasks);
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal("Minimum tasks must be greater than 0",
+            Assert.IsType<ApiResponse<object>>(badRequest.Value).Message);
+    }
+
+    [Fact]
     public async Task GetTaskById_ReturnsExpectedStatus()
     {
         var task = new TaskResponse(1, "Title", "Description", false);

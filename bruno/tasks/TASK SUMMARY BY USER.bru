@@ -1,0 +1,19 @@
+meta {
+  name: TASK SUMMARY BY USER
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/api/tasks/admin/summary?minimumTasks=2
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+headers {
+  Accept: application/json
+}

@@ -220,6 +220,43 @@ public class ApiIntegrationTests : IClassFixture<PostgresWebApplicationFactory>
     }
 
     [Fact]
+    public async Task AdminTaskSummaryEndpoint_EnforcesAdminRoleAndReturnsGroupedCounts()
+    {
+        using var userClient = await CreateAuthenticatedClientAsync("user@mail.com");
+        using var adminClient = await CreateAuthenticatedClientAsync("admin@mail.com");
+
+        var forbiddenResponse = await userClient.GetAsync("/api/tasks/admin/summary");
+        var adminResponse = await adminClient.GetAsync("/api/tasks/admin/summary?minimumTasks=3");
+        var result = await adminResponse.Content.ReadFromJsonAsync<ApiResponse<List<TaskSummaryByUserResponse>>>();
+
+        Assert.Equal(HttpStatusCode.Forbidden, forbiddenResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, adminResponse.StatusCode);
+        Assert.NotNull(result!.Data);
+
+        var adminSummary = Assert.Single(result.Data, summary => summary.Email == "admin@mail.com");
+        Assert.Equal(3, adminSummary.TotalTasks);
+        Assert.Equal(2, adminSummary.CompletedTasks);
+        Assert.Equal(1, adminSummary.PendingTasks);
+
+        var userSummary = Assert.Single(result.Data, summary => summary.Email == "user@mail.com");
+        Assert.Equal(3, userSummary.TotalTasks);
+        Assert.Equal(2, userSummary.CompletedTasks);
+        Assert.Equal(1, userSummary.PendingTasks);
+    }
+
+    [Fact]
+    public async Task AdminTaskSummaryEndpoint_RejectsInvalidMinimumTasks()
+    {
+        using var adminClient = await CreateAuthenticatedClientAsync("admin@mail.com");
+
+        var response = await adminClient.GetAsync("/api/tasks/admin/summary?minimumTasks=0");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("Minimum tasks must be greater than 0",
+            (await response.Content.ReadFromJsonAsync<ApiResponse<object>>())!.Message);
+    }
+
+    [Fact]
     public async Task TaskList_IsOwnerScopedAndSupportsPostgresSearch()
     {
         using var client = await CreateAuthenticatedClientAsync("user@mail.com");

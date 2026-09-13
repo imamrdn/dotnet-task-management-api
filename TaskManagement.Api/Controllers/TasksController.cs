@@ -52,6 +52,20 @@ public class TasksController : ControllerBase
         return Ok(ApiResponse<List<TaskWithOwnerResponse>>.Ok("Tasks with owners retrieved successfully", tasks));
     }
 
+    [Authorize(Roles = "Admin")]
+    [HttpGet("admin/summary")]
+    public async Task<IActionResult> GetTaskSummaryByUser(int? minimumTasks)
+    {
+        if (minimumTasks <= 0)
+        {
+            return BadRequest(ApiResponse<object>.Error("Minimum tasks must be greater than 0"));
+        }
+
+        var summaries = await _taskService.GetTaskSummaryByUserAsync(minimumTasks);
+
+        return Ok(ApiResponse<List<TaskSummaryByUserResponse>>.Ok("Task summary retrieved successfully", summaries));
+    }
+
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetTaskById(int id)
     {

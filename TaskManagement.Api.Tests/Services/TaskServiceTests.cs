@@ -86,6 +86,47 @@ public class TaskServiceTests
     }
 
     [Fact]
+    public async Task GetTaskSummaryByUserAsync_GroupsActiveTasksByOwner()
+    {
+        await using var context = TestDbContextFactory.Create();
+        context.Users.AddRange(
+            new User { Id = 1, Name = "Admin", Email = "admin@mail.com" },
+            new User { Id = 2, Name = "User", Email = "user@mail.com" });
+        context.Tasks.AddRange(
+            new TaskItem { Id = 1, UserId = 1, Title = "Admin done", IsCompleted = true },
+            new TaskItem { Id = 2, UserId = 1, Title = "Admin todo", IsCompleted = false },
+            new TaskItem { Id = 3, UserId = 1, Title = "Admin deleted", IsCompleted = true, IsDeleted = true },
+            new TaskItem { Id = 4, UserId = 2, Title = "User done", IsCompleted = true });
+        await context.SaveChangesAsync();
+
+        var result = await CreateService(context).GetTaskSummaryByUserAsync(null);
+
+        Assert.Equal(2, result.Count);
+        Assert.Equal(new TaskSummaryByUserResponse(1, "Admin", "admin@mail.com", 2, 1, 1), result[0]);
+        Assert.Equal(new TaskSummaryByUserResponse(2, "User", "user@mail.com", 1, 1, 0), result[1]);
+    }
+
+    [Fact]
+    public async Task GetTaskSummaryByUserAsync_FiltersGroupsByMinimumTasks()
+    {
+        await using var context = TestDbContextFactory.Create();
+        context.Users.AddRange(
+            new User { Id = 1, Name = "Admin", Email = "admin@mail.com" },
+            new User { Id = 2, Name = "User", Email = "user@mail.com" });
+        context.Tasks.AddRange(
+            new TaskItem { Id = 1, UserId = 1, Title = "Admin done", IsCompleted = true },
+            new TaskItem { Id = 2, UserId = 1, Title = "Admin todo", IsCompleted = false },
+            new TaskItem { Id = 3, UserId = 2, Title = "User done", IsCompleted = true });
+        await context.SaveChangesAsync();
+
+        var result = await CreateService(context).GetTaskSummaryByUserAsync(2);
+
+        var summary = Assert.Single(result);
+        Assert.Equal("admin@mail.com", summary.Email);
+        Assert.Equal(2, summary.TotalTasks);
+    }
+
+    [Fact]
     public async Task CreateTaskAsync_AssignsOwnerAndDefaultsToIncomplete()
     {
         await using var context = TestDbContextFactory.Create();

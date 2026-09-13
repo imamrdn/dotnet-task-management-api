@@ -103,6 +103,36 @@ public class TaskService : ITaskService
             .ToList();
     }
 
+    public async Task<List<TaskSummaryByUserResponse>> GetTaskSummaryByUserAsync(int? minimumTasks)
+    {
+        var query = _dbContext.Tasks
+            .AsNoTracking()
+            .Where(task => !task.IsDeleted)
+            .GroupBy(task => new
+            {
+                task.UserId,
+                task.User.Name,
+                task.User.Email
+            });
+
+        if (minimumTasks is not null)
+        {
+            query = query.Where(group => group.Count() >= minimumTasks);
+        }
+
+        return await query
+            .OrderBy(group => group.Key.UserId)
+            .Select(group => new TaskSummaryByUserResponse(
+                group.Key.UserId,
+                group.Key.Name,
+                group.Key.Email,
+                group.Count(),
+                group.Count(task => task.IsCompleted),
+                group.Count(task => !task.IsCompleted)
+            ))
+            .ToListAsync();
+    }
+
     public async Task<TaskResponse?> GetTaskByIdAsync(int userId, int id)
     {
         var task = await _dbContext.Tasks

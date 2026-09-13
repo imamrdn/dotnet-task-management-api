@@ -248,4 +248,4 @@ Run tests and collect code coverage:
 dotnet test TaskManagement.slnx --settings coverage.runsettings --collect:"XPlat Code Coverage"
 ```
 
-The test suite covers controllers, services, authentication, JWT generation, user-owned tasks, database seeders, HTTP authorization, migrations, PostgreSQL `ILIKE` search, and database refresh. Integration tests create an isolated PostgreSQL database and remove it after the test run.
+The test suite covers controllers, services, authentication, JWT generation, user-owned tasks, database seeders, HTTP authorization, migrations, PostgreSQL `ILIKE` search, and database refresh. Refresh runs `TRUNCATE` and reseeding in one transaction, so a seed failure rolls back the deletion. Integration tests create an isolated PostgreSQL database and remove it after the test run.

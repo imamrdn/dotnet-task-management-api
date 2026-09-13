@@ -1,9 +1,12 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using TaskManagement.Api.Data;
+using TaskManagement.Api.Data.Seeders;
 using TaskManagement.Api.DTOs;
+using TaskManagement.Api.Models;
 
 namespace TaskManagement.Api.Tests.Integration;
 
@@ -203,6 +206,40 @@ public class ApiIntegrationTests : IClassFixture<PostgresWebApplicationFactory>
         Assert.Equal(2, context.Users.Count());
         Assert.Equal(6, context.Tasks.Count());
         Assert.Equal(1, context.Users.Min(user => user.Id));
+    }
+
+    [Fact]
+    public async Task RefreshDatabase_WhenSeedingFails_RollsBackTruncate()
+    {
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        context.Users.Add(new User
+        {
+            Name = "Preserved User",
+            Email = "preserved@mail.com",
+            PasswordHash = "test-only"
+        });
+        await context.SaveChangesAsync();
+
+        await context.Database.ExecuteSqlRawAsync(
+            "ALTER TABLE users ADD CONSTRAINT test_seed_failure " +
+            "CHECK (\"Email\" <> 'admin@mail.com') NOT VALID;");
+
+        try
+        {
+            var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
+            await Assert.ThrowsAsync<DbUpdateException>(() => seeder.RefreshAsync());
+
+            await using var verifyScope = _factory.Services.CreateAsyncScope();
+            var verifyContext = verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            Assert.True(await verifyContext.Users.AnyAsync(user => user.Email == "preserved@mail.com"));
+            Assert.Equal(6, await verifyContext.Tasks.CountAsync());
+        }
+        finally
+        {
+            await context.Database.ExecuteSqlRawAsync(
+                "ALTER TABLE users DROP CONSTRAINT test_seed_failure;");
+        }
     }
 
     private async Task<HttpClient> CreateAuthenticatedClientAsync(string email)

@@ -722,7 +722,7 @@ DELETE /api/users    ✓
 
 - [x] Roles
 - [x] Claims
-- [ ] Policies
+- [x] Policies
 - [x] `[Authorize]`
 - [x] `[Authorize(Roles = "Admin")]`
 
@@ -1099,7 +1099,7 @@ Catatan:
 - [x] Refresh Token (`/api/auth/login` mengembalikan access token + refresh token; refresh token disimpan sebagai hash di database)
 - [x] Refresh-token rotation (`POST /api/auth/refresh` mencabut refresh token lama dan membuat refresh token baru)
 - [x] Token revocation (`POST /api/auth/logout` mencabut refresh token)
-- [ ] Policy-based authorization
+- [x] Policy-based authorization (`AdminOnly` policy menggantikan `[Authorize(Roles = "Admin")]` di endpoint admin)
 
 ## Dipindahkan ke File 02 / Bukan Blocker File 01
 

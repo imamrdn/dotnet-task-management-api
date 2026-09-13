@@ -14,6 +14,7 @@ using TaskManagement.Api.Health;
 
 var builder = WebApplication.CreateBuilder(args);
 const string CorsPolicyName = "AllowedOrigins";
+const string AdminPolicyName = "AdminOnly";
 
 builder.Services.AddOpenApi(options =>
 {
@@ -77,7 +78,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(AdminPolicyName, policy =>
+        policy.RequireRole("Admin"));
+});
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 builder.Services.AddCors(options =>

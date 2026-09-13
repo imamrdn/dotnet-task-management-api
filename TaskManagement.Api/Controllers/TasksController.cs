@@ -44,7 +44,7 @@ public class TasksController : ControllerBase
         return Ok(ApiResponse<PaginatedResponse<TaskResponse>>.Ok("Tasks retrieved successfully", taskItems));
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminOnly")]
     [HttpGet("admin/all")]
     public async Task<IActionResult> GetAllTasksWithOwners(CancellationToken cancellationToken = default)
     {
@@ -53,7 +53,7 @@ public class TasksController : ControllerBase
         return Ok(ApiResponse<List<TaskWithOwnerResponse>>.Ok("Tasks with owners retrieved successfully", tasks));
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminOnly")]
     [HttpGet("admin/summary")]
     public async Task<IActionResult> GetTaskSummaryByUser(int? minimumTasks, CancellationToken cancellationToken = default)
     {
@@ -67,7 +67,7 @@ public class TasksController : ControllerBase
         return Ok(ApiResponse<List<TaskSummaryByUserResponse>>.Ok("Task summary retrieved successfully", summaries));
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminOnly")]
     [HttpGet("admin/top-users")]
     public async Task<IActionResult> GetTopTaskOwners(int limit = 5, CancellationToken cancellationToken = default)
     {

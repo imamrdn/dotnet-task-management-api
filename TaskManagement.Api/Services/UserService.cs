@@ -20,6 +20,7 @@ public class UserService : IUserService
     public async Task<List<UserResponse>> GetUsersAsync()
     {
         return await _dbContext.Users
+            .AsNoTracking()
             .OrderBy(user => user.Id)
             .Select(user => new UserResponse(
                 user.Id,
@@ -31,7 +32,9 @@ public class UserService : IUserService
 
     public async Task<UserResponse?> GetUserByIdAsync(int id)
     {
-        var user = await _dbContext.Users.FirstOrDefaultAsync(user => user.Id == id);
+        var user = await _dbContext.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(user => user.Id == id);
         if (user is null)
         {
             return null;

@@ -74,7 +74,9 @@ public class AuthService
             throw new ArgumentException("Password is required");
         }
 
-        var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+        var user = await _dbContext.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Email == request.Email);
 
         if (user == null)
         {

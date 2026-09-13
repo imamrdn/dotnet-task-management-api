@@ -26,6 +26,7 @@ public class TaskService : ITaskService
         string? sortDirection)
     {
         var query = _dbContext.Tasks
+            .AsNoTracking()
             .Where(task => task.UserId == userId);
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -81,7 +82,9 @@ public class TaskService : ITaskService
 
     public async Task<TaskResponse?> GetTaskByIdAsync(int userId, int id)
     {
-        var task = await _dbContext.Tasks.FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId);
+        var task = await _dbContext.Tasks
+            .AsNoTracking()
+            .FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId);
         if (task is null)
         {
             return null;

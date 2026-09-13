@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using TaskManagement.Api.Data;
@@ -55,6 +56,26 @@ public class ApiIntegrationTests : IClassFixture<PostgresWebApplicationFactory>
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("Healthy", body);
+    }
+
+    [Fact]
+    public async Task OpenApiDocument_IncludesMetadataPathsAndBearerSecurity()
+    {
+        using var client = _factory.CreateClient();
+
+        var response = await client.GetAsync("/openapi/v1.json");
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var root = document.RootElement;
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Task Management API", root.GetProperty("info").GetProperty("title").GetString());
+        Assert.Equal("v1", root.GetProperty("info").GetProperty("version").GetString());
+        Assert.True(root.GetProperty("paths").TryGetProperty("/api/auth/login", out _));
+        Assert.True(root.GetProperty("paths").TryGetProperty("/api/tasks", out _));
+        Assert.True(root.GetProperty("paths").TryGetProperty("/api/users", out _));
+        Assert.True(root.GetProperty("paths").TryGetProperty("/health", out _));
+        Assert.True(root.GetProperty("components").GetProperty("securitySchemes").TryGetProperty("Bearer", out _));
+        Assert.True(root.GetProperty("security").GetArrayLength() > 0);
     }
 
     [Fact]

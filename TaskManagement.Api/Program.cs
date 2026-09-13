@@ -6,6 +6,8 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.OpenApi;
 using TaskManagement.Api.DTOs;
 using TaskManagement.Api.Errors;
 using TaskManagement.Api.Health;
@@ -13,7 +15,36 @@ using TaskManagement.Api.Health;
 var builder = WebApplication.CreateBuilder(args);
 const string CorsPolicyName = "AllowedOrigins";
 
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer((document, _, _) =>
+    {
+        document.Info = new OpenApiInfo
+        {
+            Title = "Task Management API",
+            Version = "v1",
+            Description = "A learning API for task management with authentication, authorization, user-owned tasks, and PostgreSQL persistence."
+        };
+
+        var components = document.Components ??= new OpenApiComponents();
+        components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+        components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme
+        {
+            Type = SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "JWT",
+            Description = "Enter a JWT access token from the login endpoint."
+        };
+
+        document.Security ??= [];
+        document.Security.Add(new OpenApiSecurityRequirement
+        {
+            [new OpenApiSecuritySchemeReference("Bearer", document)] = []
+        });
+
+        return Task.CompletedTask;
+    });
+});
 builder.Services.AddControllers();
 builder.Services.Configure<ApiBehaviorOptions>(options =>
 {
@@ -87,7 +118,10 @@ if (app.Environment.IsDevelopment())
     {
         await seeder.SeedAsync();
     }
+}
 
+if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
+{
     app.MapOpenApi();
 }
 
@@ -108,7 +142,14 @@ app.UseHttpsRedirection();
 app.UseCors(CorsPolicyName);
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapHealthChecks("/health");
+app.MapGet("/health", async (HealthCheckService healthCheckService) =>
+{
+    var report = await healthCheckService.CheckHealthAsync();
+
+    return report.Status == HealthStatus.Healthy
+        ? Results.Text("Healthy")
+        : Results.Text("Unhealthy", statusCode: StatusCodes.Status503ServiceUnavailable);
+});
 app.MapControllers();
 
 app.Run();

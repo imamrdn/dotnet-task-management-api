@@ -23,6 +23,7 @@ Task Management API built with ASP.NET Core, PostgreSQL, Entity Framework Core, 
 │   │   ├── negative/
 │   │   └── user/
 │   ├── health/
+│   ├── openapi/
 │   ├── tasks/
 │   └── users/
 └── TaskManagement.Api/
@@ -104,6 +105,7 @@ PUT     /api/users/{id}              (requires Admin role)
 DELETE  /api/users/{id}              (requires Admin role)
 
 GET     /health
+GET     /openapi/v1.json           (Development only)
 ```
 
 Task endpoints are scoped to the authenticated user. A user can only list, create, update, and delete their own tasks.
@@ -111,6 +113,8 @@ Task endpoints are scoped to the authenticated user. A user can only list, creat
 User management endpoints are scoped to users with the `Admin` role.
 
 Health check verifies that the API can connect to the database.
+
+OpenAPI JSON is available in Development and describes the API contract, including JWT Bearer authentication.
 
 ## Local Setup
 
@@ -217,6 +221,8 @@ Run `auth/LOGIN ADMIN` or `auth/LOGIN USER` to receive a JWT. The login requests
 
 Run `health/HEALTH CHECK` to verify the API and database connection.
 
+Run `openapi/OPENAPI JSON` to inspect the generated OpenAPI contract in Development.
+
 The `flows/` folder contains ordered request scenarios:
 
 ```text
@@ -256,10 +262,11 @@ Completed so far:
 - Environment-specific configuration
 - CORS configuration for browser clients
 - Health check endpoint for API and database readiness
+- OpenAPI metadata and JWT Bearer documentation
 
 Next phase:
 
-- Swagger / OpenAPI review
+- Rate limiting
 
 ## API Response
 

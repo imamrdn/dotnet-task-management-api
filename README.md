@@ -120,6 +120,15 @@ dotnet user-secrets set "Jwt:Key" "your-local-secret-key-minimal-32-characters" 
 
 `appsettings.json` keeps only safe shared values. Local secrets such as database passwords and JWT signing keys should stay in User Secrets or environment variables, not in Git.
 
+Configuration is environment-specific:
+
+```text
+Development -> appsettings.json + appsettings.Development.json + User Secrets + environment variables
+Production  -> appsettings.json + appsettings.Production.json + environment variables
+```
+
+The local launch profiles in `TaskManagement.Api/Properties/launchSettings.json` run with `ASPNETCORE_ENVIRONMENT=Development`. Production should provide secrets through environment variables, for example `ConnectionStrings__DefaultConnection` and `Jwt__Key`.
+
 Apply EF Core migrations:
 
 ```bash

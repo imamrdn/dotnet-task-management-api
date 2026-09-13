@@ -1,10 +1,10 @@
 meta {
-  name: DELETE USER
+  name: USER BY ID
   type: http
-  seq: 13
+  seq: 2
 }
 
-delete {
+get {
   url: {{baseUrl}}/api/users/{{userId}}
   body: none
   auth: bearer

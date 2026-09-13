@@ -1,11 +1,11 @@
 meta {
-  name: USERS WITHOUT TASKS
+  name: TASK LIST WITH OWNERS
   type: http
-  seq: 10
+  seq: 1
 }
 
 get {
-  url: {{baseUrl}}/api/users/without-tasks
+  url: {{baseUrl}}/api/tasks/admin/all
   body: none
   auth: bearer
 }

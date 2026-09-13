@@ -838,28 +838,63 @@ Bruno digunakan sebagai API client utama untuk belajar alur request.
 Struktur flow yang sudah diterapkan:
 
 ```text
-bruno/flows/admin
+bruno/_flows/admin
   01 LOGIN ADMIN
   02 GET ALL USERS
   03 CREATE USER
   04 UPDATE USER
   05 DELETE USER
 
-bruno/flows/user
+bruno/_flows/user
   01 LOGIN USER
   02 CREATE TASK
   03 GET MY TASKS
   04 GET TASK BY ID
   05 UPDATE TASK
-  06 DELETE TASK
+  06 PATCH TASK COMPLETION
+  07 DELETE TASK
 
-bruno/flows/negative
+bruno/_flows/negative
   00 LOGIN USER
   01 LOGIN WRONG PASSWORD
   02 GET TASKS WITHOUT TOKEN
   03 USER ACCESS USERS ENDPOINT
   04 CREATE TASK WITHOUT TITLE
   05 GET MISSING TASK
+```
+
+Struktur endpoint collection:
+
+```text
+bruno/admin/users
+  USER LIST
+  USER BY ID
+  USERS WITHOUT TASKS
+  CREATE USER
+  UPDATE USER
+  DELETE USER
+
+bruno/admin/tasks
+  TASK LIST WITH OWNERS
+  TASK SUMMARY BY USER
+  TOP TASK OWNERS
+
+bruno/tasks
+  TASK LIST
+  TASK BY ID
+  CREATE TASK
+  DELETE TASK
+  PUT TASK
+  PATCH TASK COMPLETION
+  TASK SEARCH
+  TASK FILTER COMPLETED
+  TASK SORT
+
+bruno/_tools/health
+  HEALTH CHECK
+
+bruno/_tools/openapi
+  OPENAPI JSON
 ```
 
 Tujuan flow:
@@ -1057,7 +1092,7 @@ Catatan:
 ## API Design & Advanced Auth
 
 - [x] PUT vs PATCH (`PUT /api/tasks/{id}` untuk update penuh; `PATCH /api/tasks/{id}/completion` untuk update status sebagian)
-- [ ] Idempotency
+- [ ] Idempotency (`GET`, `PUT`, dan `PATCH /completion` aman diulang; `POST` tidak idempotent. `Idempotency-Key` belum relevan sebelum ada operasi kritikal seperti payment/checkout)
 - [ ] Resource naming
 - [ ] HTTP semantics
 - [ ] ProblemDetails

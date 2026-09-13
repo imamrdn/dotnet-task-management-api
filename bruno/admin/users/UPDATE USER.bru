@@ -1,11 +1,11 @@
 meta {
-  name: CREATE USER
+  name: UPDATE USER
   type: http
-  seq: 11
+  seq: 5
 }
 
-post {
-  url: {{baseUrl}}/api/users
+put {
+  url: {{baseUrl}}/api/users/{{userId}}
   body: json
   auth: bearer
 }
@@ -21,8 +21,8 @@ auth:bearer {
 
 body:json {
   {
-    "name": "Example User",
-    "email": "example@example.com",
+    "name": "Example User Updated",
+    "email": "example-updated@example.com",
     "password": "secret123"
   }
 }

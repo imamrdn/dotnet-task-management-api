@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TaskManagement.Api.Data;
 using TaskManagement.Api.DTOs;
+using TaskManagement.Api.Extensions;
 using TaskManagement.Api.Models;
 
 namespace TaskManagement.Api.Services;
@@ -27,7 +28,8 @@ public class TaskService : ITaskService
     {
         var query = _dbContext.Tasks
             .AsNoTracking()
-            .Where(task => task.UserId == userId && !task.IsDeleted);
+            .WhereActive()
+            .Where(task => task.UserId == userId);
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -84,7 +86,7 @@ public class TaskService : ITaskService
     {
         var tasks = await _dbContext.Tasks
             .AsNoTracking()
-            .Where(task => !task.IsDeleted)
+            .WhereActive()
             .Include(task => task.User)
             .OrderBy(task => task.Id)
             .ToListAsync();
@@ -107,7 +109,7 @@ public class TaskService : ITaskService
     {
         var query = _dbContext.Tasks
             .AsNoTracking()
-            .Where(task => !task.IsDeleted)
+            .WhereActive()
             .GroupBy(task => new
             {
                 task.UserId,
@@ -137,7 +139,7 @@ public class TaskService : ITaskService
     {
         return await _dbContext.Tasks
             .AsNoTracking()
-            .Where(task => !task.IsDeleted)
+            .WhereActive()
             .GroupBy(task => new
             {
                 task.UserId,
@@ -160,7 +162,8 @@ public class TaskService : ITaskService
     {
         var task = await _dbContext.Tasks
             .AsNoTracking()
-            .FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId && !task.IsDeleted);
+            .WhereActive()
+            .FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId);
         if (task is null)
         {
             return null;
@@ -200,7 +203,8 @@ public class TaskService : ITaskService
     public async Task<TaskResponse?> UpdateTaskAsync(int userId, int id, UpdateTaskRequest request)
     {
         var task = await _dbContext.Tasks
-            .FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId && !task.IsDeleted);
+            .WhereActive()
+            .FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId);
         if (task is null)
         {
             return null;
@@ -225,7 +229,8 @@ public class TaskService : ITaskService
     public async Task<bool> DeleteTaskAsync(int userId, int id)
     {
         var task = await _dbContext.Tasks
-            .FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId && !task.IsDeleted);
+            .WhereActive()
+            .FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId);
         if (task is null)
         {
             return false;

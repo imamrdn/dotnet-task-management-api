@@ -27,7 +27,7 @@ public class TaskService : ITaskService
     {
         var query = _dbContext.Tasks
             .AsNoTracking()
-            .Where(task => task.UserId == userId);
+            .Where(task => task.UserId == userId && !task.IsDeleted);
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -84,6 +84,7 @@ public class TaskService : ITaskService
     {
         var tasks = await _dbContext.Tasks
             .AsNoTracking()
+            .Where(task => !task.IsDeleted)
             .Include(task => task.User)
             .OrderBy(task => task.Id)
             .ToListAsync();
@@ -106,7 +107,7 @@ public class TaskService : ITaskService
     {
         var task = await _dbContext.Tasks
             .AsNoTracking()
-            .FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId);
+            .FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId && !task.IsDeleted);
         if (task is null)
         {
             return null;
@@ -144,7 +145,8 @@ public class TaskService : ITaskService
 
     public async Task<TaskResponse?> UpdateTaskAsync(int userId, int id, UpdateTaskRequest request)
     {
-        var task = await _dbContext.Tasks.FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId);
+        var task = await _dbContext.Tasks
+            .FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId && !task.IsDeleted);
         if (task is null)
         {
             return null;
@@ -167,13 +169,14 @@ public class TaskService : ITaskService
 
     public async Task<bool> DeleteTaskAsync(int userId, int id)
     {
-        var task = await _dbContext.Tasks.FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId);
+        var task = await _dbContext.Tasks
+            .FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId && !task.IsDeleted);
         if (task is null)
         {
             return false;
         }
 
-        _dbContext.Tasks.Remove(task);
+        task.IsDeleted = true;
         await _dbContext.SaveChangesAsync();
         _logger.LogInformation("Task {TaskId} deleted by user {UserId}", id, userId);
 

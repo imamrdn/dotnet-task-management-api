@@ -17,7 +17,8 @@ public class TaskServiceTests
             new TaskItem { Id = 1, UserId = 1, Title = "A", IsCompleted = false },
             new TaskItem { Id = 2, UserId = 1, Title = "B", IsCompleted = true },
             new TaskItem { Id = 3, UserId = 1, Title = "C", IsCompleted = true },
-            new TaskItem { Id = 4, UserId = 2, Title = "Other", IsCompleted = true });
+            new TaskItem { Id = 4, UserId = 2, Title = "Other", IsCompleted = true },
+            new TaskItem { Id = 5, UserId = 1, Title = "Deleted", IsCompleted = true, IsDeleted = true });
         await context.SaveChangesAsync();
 
         var result = await CreateService(context)
@@ -52,12 +53,15 @@ public class TaskServiceTests
     public async Task GetTaskByIdAsync_OnlyReturnsOwnedTask()
     {
         await using var context = TestDbContextFactory.Create();
-        context.Tasks.Add(new TaskItem { Id = 1, UserId = 1, Title = "Owned" });
+        context.Tasks.AddRange(
+            new TaskItem { Id = 1, UserId = 1, Title = "Owned" },
+            new TaskItem { Id = 2, UserId = 1, Title = "Deleted", IsDeleted = true });
         await context.SaveChangesAsync();
         var service = CreateService(context);
 
         Assert.NotNull(await service.GetTaskByIdAsync(1, 1));
         Assert.Null(await service.GetTaskByIdAsync(2, 1));
+        Assert.Null(await service.GetTaskByIdAsync(1, 2));
     }
 
     [Fact]
@@ -69,7 +73,8 @@ public class TaskServiceTests
             new User { Id = 2, Name = "User", Email = "user@mail.com" });
         context.Tasks.AddRange(
             new TaskItem { Id = 1, UserId = 1, Title = "Admin task", Description = "Admin description" },
-            new TaskItem { Id = 2, UserId = 2, Title = "User task", Description = "User description" });
+            new TaskItem { Id = 2, UserId = 2, Title = "User task", Description = "User description" },
+            new TaskItem { Id = 3, UserId = 2, Title = "Deleted task", Description = "Deleted description", IsDeleted = true });
         await context.SaveChangesAsync();
 
         var result = await CreateService(context).GetAllTasksWithOwnersAsync();
@@ -77,6 +82,7 @@ public class TaskServiceTests
         Assert.Equal(2, result.Count);
         Assert.Equal("Admin", result[0].Owner.Name);
         Assert.Equal("user@mail.com", result[1].Owner.Email);
+        Assert.DoesNotContain(result, task => task.Title == "Deleted task");
     }
 
     [Fact]
@@ -118,7 +124,8 @@ public class TaskServiceTests
 
         Assert.False(await service.DeleteTaskAsync(2, 1));
         Assert.True(await service.DeleteTaskAsync(1, 1));
-        Assert.Empty(context.Tasks);
+        Assert.True((await context.Tasks.FindAsync(1))!.IsDeleted);
+        Assert.Null(await service.GetTaskByIdAsync(1, 1));
     }
 
     [Fact]

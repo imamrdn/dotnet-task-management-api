@@ -36,6 +36,7 @@ public class SeederTests
 
         Assert.Equal(3, context.Tasks.Count(task => task.UserId == admin.Id));
         Assert.Equal(3, context.Tasks.Count(task => task.UserId == user.Id));
+        Assert.All(context.Tasks, task => Assert.True(task.CreatedAt > DateTime.MinValue));
     }
 
     [Fact]

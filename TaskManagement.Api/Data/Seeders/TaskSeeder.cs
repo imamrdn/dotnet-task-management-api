@@ -20,6 +20,7 @@ public class TaskSeeder
             return;
         }
 
+        var now = DateTime.UtcNow;
         var tasks = new List<TaskItem>
         {
             new TaskItem
@@ -27,6 +28,7 @@ public class TaskSeeder
                 Title = "Review registered users",
                 Description = "Inspect the users management endpoint as an admin",
                 IsCompleted = true,
+                CreatedAt = now,
                 UserId = admin.Id
             },
             new TaskItem
@@ -34,6 +36,7 @@ public class TaskSeeder
                 Title = "Manage demo data",
                 Description = "Verify seeded users and tasks",
                 IsCompleted = true,
+                CreatedAt = now,
                 UserId = admin.Id
             },
             new TaskItem
@@ -41,6 +44,7 @@ public class TaskSeeder
                 Title = "Prepare role testing",
                 Description = "Use this admin account to test protected user endpoints",
                 IsCompleted = false,
+                CreatedAt = now,
                 UserId = admin.Id
             }
         };
@@ -57,6 +61,7 @@ public class TaskSeeder
             return;
         }
 
+        var now = DateTime.UtcNow;
         var tasks = new List<TaskItem>
         {
             new TaskItem
@@ -64,6 +69,7 @@ public class TaskSeeder
                 Title = "Create a personal task",
                 Description = "Practice creating tasks as a regular user",
                 IsCompleted = true,
+                CreatedAt = now,
                 UserId = user.Id
             },
             new TaskItem
@@ -71,6 +77,7 @@ public class TaskSeeder
                 Title = "Check own task list",
                 Description = "Confirm regular users only see their own tasks",
                 IsCompleted = true,
+                CreatedAt = now,
                 UserId = user.Id
             },
             new TaskItem
@@ -78,6 +85,7 @@ public class TaskSeeder
                 Title = "Try users endpoint",
                 Description = "Confirm regular users receive forbidden access",
                 IsCompleted = false,
+                CreatedAt = now,
                 UserId = user.Id
             }
         };

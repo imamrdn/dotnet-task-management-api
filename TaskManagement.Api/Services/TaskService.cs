@@ -128,6 +128,7 @@ public class TaskService : ITaskService
             Title = request.Title,
             Description = request.Description,
             IsCompleted = false,
+            CreatedAt = DateTime.UtcNow,
             UserId = userId
         };
 
@@ -155,6 +156,7 @@ public class TaskService : ITaskService
         task.Title = request.Title;
         task.Description = request.Description;
         task.IsCompleted = request.IsCompleted;
+        task.UpdatedAt = DateTime.UtcNow;
 
         await _dbContext.SaveChangesAsync();
         _logger.LogInformation("Task {TaskId} updated by user {UserId}", task.Id, userId);
@@ -177,6 +179,7 @@ public class TaskService : ITaskService
         }
 
         task.IsDeleted = true;
+        task.DeletedAt = DateTime.UtcNow;
         await _dbContext.SaveChangesAsync();
         _logger.LogInformation("Task {TaskId} deleted by user {UserId}", id, userId);
 

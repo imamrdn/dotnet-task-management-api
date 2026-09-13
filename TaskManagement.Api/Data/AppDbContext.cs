@@ -32,6 +32,10 @@ public class AppDbContext : DbContext
             .HasIndex(task => new { task.UserId, task.Id });
 
         modelBuilder.Entity<TaskItem>()
+            .Property(task => task.CreatedAt)
+            .HasDefaultValueSql("now()");
+
+        modelBuilder.Entity<TaskItem>()
             .HasOne(t => t.User)
             .WithMany(u => u.Tasks)
             .HasForeignKey(t => t.UserId);

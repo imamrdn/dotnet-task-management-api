@@ -95,6 +95,9 @@ public class TaskServiceTests
 
         var task = Assert.Single(context.Tasks);
         Assert.Equal(7, task.UserId);
+        Assert.True(task.CreatedAt > DateTime.MinValue);
+        Assert.Null(task.UpdatedAt);
+        Assert.Null(task.DeletedAt);
         Assert.False(result.IsCompleted);
     }
 
@@ -110,6 +113,7 @@ public class TaskServiceTests
             new UpdateTaskRequest("New", "Updated", true));
 
         Assert.Equal("New", result!.Title);
+        Assert.NotNull((await context.Tasks.FindAsync(1))!.UpdatedAt);
         Assert.Null(await service.UpdateTaskAsync(2, 1,
             new UpdateTaskRequest("Blocked", "Blocked", false)));
     }
@@ -125,6 +129,7 @@ public class TaskServiceTests
         Assert.False(await service.DeleteTaskAsync(2, 1));
         Assert.True(await service.DeleteTaskAsync(1, 1));
         Assert.True((await context.Tasks.FindAsync(1))!.IsDeleted);
+        Assert.NotNull((await context.Tasks.FindAsync(1))!.DeletedAt);
         Assert.Null(await service.GetTaskByIdAsync(1, 1));
     }
 

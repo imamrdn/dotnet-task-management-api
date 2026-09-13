@@ -244,6 +244,14 @@ Completed so far:
 - Database seeding with demo admin, demo user, and demo tasks
 - Pagination metadata
 - Search, filter, and sorting for task list
+- Consistent `ApiResponse<T>` envelope
+- Global exception handling
+- Bruno request flows and negative cases
+- Unit and integration testing
+- Code coverage with Coverlet
+- GitHub Actions CI
+- Structured service logging
+- Atomic database refresh with transaction
 - Local secret configuration with .NET User Secrets
 - Environment-specific configuration
 - CORS configuration for browser clients

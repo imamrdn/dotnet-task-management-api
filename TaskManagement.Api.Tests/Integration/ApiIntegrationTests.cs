@@ -203,6 +203,23 @@ public class ApiIntegrationTests : IClassFixture<PostgresWebApplicationFactory>
     }
 
     [Fact]
+    public async Task AdminTaskOwnerEndpoint_EnforcesAdminRoleAndReturnsOwnerData()
+    {
+        using var userClient = await CreateAuthenticatedClientAsync("user@mail.com");
+        using var adminClient = await CreateAuthenticatedClientAsync("admin@mail.com");
+
+        var forbiddenResponse = await userClient.GetAsync("/api/tasks/admin/all");
+        var adminResponse = await adminClient.GetAsync("/api/tasks/admin/all");
+        var result = await adminResponse.Content.ReadFromJsonAsync<ApiResponse<List<TaskWithOwnerResponse>>>();
+
+        Assert.Equal(HttpStatusCode.Forbidden, forbiddenResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, adminResponse.StatusCode);
+        Assert.NotNull(result!.Data);
+        Assert.Contains(result.Data, task => task.Owner.Email == "admin@mail.com");
+        Assert.Contains(result.Data, task => task.Owner.Email == "user@mail.com");
+    }
+
+    [Fact]
     public async Task TaskList_IsOwnerScopedAndSupportsPostgresSearch()
     {
         using var client = await CreateAuthenticatedClientAsync("user@mail.com");

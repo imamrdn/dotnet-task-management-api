@@ -93,6 +93,7 @@ GET     /api/tasks?page=1&limit=10                                (requires Bear
 GET     /api/tasks?page=1&limit=10&search=login                   (requires Bearer token)
 GET     /api/tasks?page=1&limit=10&isCompleted=true               (requires Bearer token)
 GET     /api/tasks?page=1&limit=10&sortBy=id&sortDirection=desc   (requires Bearer token)
+GET     /api/tasks/admin/all                                      (requires Admin role)
 GET     /api/tasks/{id}                                           (requires Bearer token)
 POST    /api/tasks                                                (requires Bearer token)
 PUT     /api/tasks/{id}                                           (requires Bearer token)
@@ -108,7 +109,7 @@ GET     /health
 GET     /openapi/v1.json           (Development only)
 ```
 
-Task endpoints are scoped to the authenticated user. A user can only list, create, update, and delete their own tasks.
+Task endpoints are scoped to the authenticated user. A user can only list, create, update, and delete their own tasks. Admin can use `/api/tasks/admin/all` to inspect all tasks with owner data.
 
 User management endpoints are scoped to users with the `Admin` role.
 

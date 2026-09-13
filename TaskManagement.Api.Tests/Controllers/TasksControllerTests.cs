@@ -37,6 +37,21 @@ public class TasksControllerTests
     }
 
     [Fact]
+    public async Task GetAllTasksWithOwners_ReturnsServiceResponse()
+    {
+        var response = new List<TaskWithOwnerResponse>
+        {
+            new(1, "Title", "Description", false, new UserResponse(7, "User", "user@mail.com"))
+        };
+        _service.Setup(service => service.GetAllTasksWithOwnersAsync()).ReturnsAsync(response);
+
+        var result = await CreateController().GetAllTasksWithOwners();
+
+        Assert.Same(response, Assert.IsType<ApiResponse<List<TaskWithOwnerResponse>>>(
+            Assert.IsType<OkObjectResult>(result).Value).Data);
+    }
+
+    [Fact]
     public async Task GetTaskById_ReturnsExpectedStatus()
     {
         var task = new TaskResponse(1, "Title", "Description", false);

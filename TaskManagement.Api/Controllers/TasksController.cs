@@ -43,6 +43,15 @@ public class TasksController : ControllerBase
         return Ok(ApiResponse<PaginatedResponse<TaskResponse>>.Ok("Tasks retrieved successfully", taskItems));
     }
 
+    [Authorize(Roles = "Admin")]
+    [HttpGet("admin/all")]
+    public async Task<IActionResult> GetAllTasksWithOwners()
+    {
+        var tasks = await _taskService.GetAllTasksWithOwnersAsync();
+
+        return Ok(ApiResponse<List<TaskWithOwnerResponse>>.Ok("Tasks with owners retrieved successfully", tasks));
+    }
+
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetTaskById(int id)
     {

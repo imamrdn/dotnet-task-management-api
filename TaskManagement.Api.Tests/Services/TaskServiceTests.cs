@@ -61,6 +61,25 @@ public class TaskServiceTests
     }
 
     [Fact]
+    public async Task GetAllTasksWithOwnersAsync_ReturnsTasksWithOwnerData()
+    {
+        await using var context = TestDbContextFactory.Create();
+        context.Users.AddRange(
+            new User { Id = 1, Name = "Admin", Email = "admin@mail.com" },
+            new User { Id = 2, Name = "User", Email = "user@mail.com" });
+        context.Tasks.AddRange(
+            new TaskItem { Id = 1, UserId = 1, Title = "Admin task", Description = "Admin description" },
+            new TaskItem { Id = 2, UserId = 2, Title = "User task", Description = "User description" });
+        await context.SaveChangesAsync();
+
+        var result = await CreateService(context).GetAllTasksWithOwnersAsync();
+
+        Assert.Equal(2, result.Count);
+        Assert.Equal("Admin", result[0].Owner.Name);
+        Assert.Equal("user@mail.com", result[1].Owner.Email);
+    }
+
+    [Fact]
     public async Task CreateTaskAsync_AssignsOwnerAndDefaultsToIncomplete()
     {
         await using var context = TestDbContextFactory.Create();

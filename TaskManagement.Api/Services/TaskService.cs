@@ -80,6 +80,28 @@ public class TaskService : ITaskService
         );
     }
 
+    public async Task<List<TaskWithOwnerResponse>> GetAllTasksWithOwnersAsync()
+    {
+        var tasks = await _dbContext.Tasks
+            .AsNoTracking()
+            .Include(task => task.User)
+            .OrderBy(task => task.Id)
+            .ToListAsync();
+
+        return tasks
+            .Select(task => new TaskWithOwnerResponse(
+                task.Id,
+                task.Title,
+                task.Description,
+                task.IsCompleted,
+                new UserResponse(
+                    task.User.Id,
+                    task.User.Name,
+                    task.User.Email
+                )))
+            .ToList();
+    }
+
     public async Task<TaskResponse?> GetTaskByIdAsync(int userId, int id)
     {
         var task = await _dbContext.Tasks

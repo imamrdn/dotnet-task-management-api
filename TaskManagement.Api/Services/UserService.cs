@@ -9,10 +9,12 @@ namespace TaskManagement.Api.Services;
 public class UserService : IUserService
 {
     private readonly AppDbContext _dbContext;
+    private readonly ILogger<UserService> _logger;
 
-    public UserService(AppDbContext dbContext)
+    public UserService(AppDbContext dbContext, ILogger<UserService> logger)
     {
         _dbContext = dbContext;
+        _logger = logger;
     }
 
     public async Task<List<UserResponse>> GetUsersAsync()
@@ -64,6 +66,7 @@ public class UserService : IUserService
 
         _dbContext.Users.Add(user);
         await _dbContext.SaveChangesAsync();
+        _logger.LogInformation("User {UserId} created", user.Id);
 
         return new UserResponse(user.Id, user.Name, user.Email);
     }
@@ -96,6 +99,7 @@ public class UserService : IUserService
         }
 
         await _dbContext.SaveChangesAsync();
+        _logger.LogInformation("User {UserId} updated", user.Id);
 
         return new UserResponse(user.Id, user.Name, user.Email);
     }
@@ -110,6 +114,7 @@ public class UserService : IUserService
 
         _dbContext.Users.Remove(user);
         await _dbContext.SaveChangesAsync();
+        _logger.LogInformation("User {UserId} deleted", id);
 
         return true;
     }

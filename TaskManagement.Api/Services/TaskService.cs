@@ -8,10 +8,12 @@ namespace TaskManagement.Api.Services;
 public class TaskService : ITaskService
 {
     private readonly AppDbContext _dbContext;
+    private readonly ILogger<TaskService> _logger;
 
-    public TaskService(AppDbContext dbContext)
+    public TaskService(AppDbContext dbContext, ILogger<TaskService> logger)
     {
         _dbContext = dbContext;
+        _logger = logger;
     }
 
     public async Task<PaginatedResponse<TaskResponse>> GetTasksAsync(
@@ -105,6 +107,7 @@ public class TaskService : ITaskService
 
         _dbContext.Tasks.Add(task);
         await _dbContext.SaveChangesAsync();
+        _logger.LogInformation("Task {TaskId} created by user {UserId}", task.Id, userId);
 
         return new TaskResponse(
             task.Id,
@@ -127,6 +130,7 @@ public class TaskService : ITaskService
         task.IsCompleted = request.IsCompleted;
 
         await _dbContext.SaveChangesAsync();
+        _logger.LogInformation("Task {TaskId} updated by user {UserId}", task.Id, userId);
 
         return new TaskResponse(
             task.Id,
@@ -146,6 +150,7 @@ public class TaskService : ITaskService
 
         _dbContext.Tasks.Remove(task);
         await _dbContext.SaveChangesAsync();
+        _logger.LogInformation("Task {TaskId} deleted by user {UserId}", id, userId);
 
         return true;
     }

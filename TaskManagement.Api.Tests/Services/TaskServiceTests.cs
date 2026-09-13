@@ -1,3 +1,6 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using TaskManagement.Api.Data;
 using TaskManagement.Api.DTOs;
 using TaskManagement.Api.Models;
 using TaskManagement.Api.Services;
@@ -17,7 +20,7 @@ public class TaskServiceTests
             new TaskItem { Id = 4, UserId = 2, Title = "Other", IsCompleted = true });
         await context.SaveChangesAsync();
 
-        var result = await new TaskService(context)
+        var result = await CreateService(context)
             .GetTasksAsync(1, 1, 1, null, true, "title", "desc");
 
         Assert.Equal(2, result.TotalItems);
@@ -39,7 +42,7 @@ public class TaskServiceTests
             new TaskItem { Id = 2, UserId = 1, Title = "A", IsCompleted = true });
         await context.SaveChangesAsync();
 
-        var result = await new TaskService(context)
+        var result = await CreateService(context)
             .GetTasksAsync(1, 1, 10, null, null, sortBy, direction);
 
         Assert.Equal(expectedFirstTitle, result.Items[0].Title);
@@ -51,7 +54,7 @@ public class TaskServiceTests
         await using var context = TestDbContextFactory.Create();
         context.Tasks.Add(new TaskItem { Id = 1, UserId = 1, Title = "Owned" });
         await context.SaveChangesAsync();
-        var service = new TaskService(context);
+        var service = CreateService(context);
 
         Assert.NotNull(await service.GetTaskByIdAsync(1, 1));
         Assert.Null(await service.GetTaskByIdAsync(2, 1));
@@ -62,7 +65,7 @@ public class TaskServiceTests
     {
         await using var context = TestDbContextFactory.Create();
 
-        var result = await new TaskService(context)
+        var result = await CreateService(context)
             .CreateTaskAsync(7, new CreateTaskRequest("Title", "Description"));
 
         var task = Assert.Single(context.Tasks);
@@ -76,7 +79,7 @@ public class TaskServiceTests
         await using var context = TestDbContextFactory.Create();
         context.Tasks.Add(new TaskItem { Id = 1, UserId = 1, Title = "Old" });
         await context.SaveChangesAsync();
-        var service = new TaskService(context);
+        var service = CreateService(context);
 
         var result = await service.UpdateTaskAsync(1, 1,
             new UpdateTaskRequest("New", "Updated", true));
@@ -92,10 +95,35 @@ public class TaskServiceTests
         await using var context = TestDbContextFactory.Create();
         context.Tasks.Add(new TaskItem { Id = 1, UserId = 1 });
         await context.SaveChangesAsync();
-        var service = new TaskService(context);
+        var service = CreateService(context);
 
         Assert.False(await service.DeleteTaskAsync(2, 1));
         Assert.True(await service.DeleteTaskAsync(1, 1));
         Assert.Empty(context.Tasks);
     }
+
+    [Fact]
+    public async Task WriteOperations_LogOnlySuccessfulChanges()
+    {
+        await using var context = TestDbContextFactory.Create();
+        var logger = new TestLogger<TaskService>();
+        var service = new TaskService(context, logger);
+
+        var created = await service.CreateTaskAsync(7,
+            new CreateTaskRequest("Title", "Description"));
+        await service.UpdateTaskAsync(7, created.Id,
+            new UpdateTaskRequest("Updated", "Description", true));
+        await service.DeleteTaskAsync(8, created.Id);
+        await service.DeleteTaskAsync(7, created.Id);
+
+        Assert.Equal(3, logger.Entries.Count);
+        Assert.All(logger.Entries, entry => Assert.Equal(LogLevel.Information, entry.Level));
+        Assert.Contains(logger.Entries, entry => entry.Message.Contains($"Task {created.Id} created by user 7"));
+        Assert.Contains(logger.Entries, entry => entry.Message.Contains($"Task {created.Id} updated by user 7"));
+        Assert.Contains(logger.Entries, entry => entry.Message.Contains($"Task {created.Id} deleted by user 7"));
+        Assert.DoesNotContain(logger.Entries, entry => entry.Message.Contains("Description"));
+    }
+
+    private static TaskService CreateService(AppDbContext context) =>
+        new(context, NullLogger<TaskService>.Instance);
 }

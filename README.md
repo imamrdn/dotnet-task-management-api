@@ -230,6 +230,10 @@ Errors use `success: false`, an error message, and `data: null`. Validation and 
 
 Request DTOs use Data Annotations for required fields and email format. Invalid HTTP requests return the same API response envelope through ASP.NET Core model validation.
 
+## Logging
+
+Services use structured `ILogger<T>` messages for successful registration and login, task changes, and user changes. Invalid credentials produce a generic warning; unexpected server errors are logged by the global exception handler. Logs include entity IDs, but never request passwords, JWTs, or connection strings.
+
 ## Testing
 
 Run all unit tests:

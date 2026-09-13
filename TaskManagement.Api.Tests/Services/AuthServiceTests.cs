@@ -2,6 +2,9 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using TaskManagement.Api.Data;
 using TaskManagement.Api.DTOs;
 using TaskManagement.Api.Models;
 using TaskManagement.Api.Services;
@@ -27,7 +30,7 @@ public class AuthServiceTests
         string name, string email, string password, string message)
     {
         await using var context = TestDbContextFactory.Create();
-        var service = new AuthService(context, Configuration);
+        var service = CreateService(context);
 
         var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
             service.RegisterAsync(new RegisterRequest(name, email, password)));
@@ -39,7 +42,7 @@ public class AuthServiceTests
     public async Task RegisterAsync_ValidRequest_CreatesRegularUserWithHashedPassword()
     {
         await using var context = TestDbContextFactory.Create();
-        var service = new AuthService(context, Configuration);
+        var service = CreateService(context);
 
         await service.RegisterAsync(new RegisterRequest("User", "user@mail.com", "secret123"));
 
@@ -54,7 +57,7 @@ public class AuthServiceTests
         await using var context = TestDbContextFactory.Create();
         context.Users.Add(new User { Email = "user@mail.com" });
         await context.SaveChangesAsync();
-        var service = new AuthService(context, Configuration);
+        var service = CreateService(context);
 
         var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
             service.RegisterAsync(new RegisterRequest("User", "user@mail.com", "secret123")));
@@ -69,7 +72,7 @@ public class AuthServiceTests
         string email, string password, string message)
     {
         await using var context = TestDbContextFactory.Create();
-        var service = new AuthService(context, Configuration);
+        var service = CreateService(context);
 
         var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
             service.LoginAsync(new LoginRequest(email, password)));
@@ -85,7 +88,7 @@ public class AuthServiceTests
         user.PasswordHash = new PasswordHasher<User>().HashPassword(user, "secret123");
         context.Users.Add(user);
         await context.SaveChangesAsync();
-        var service = new AuthService(context, Configuration);
+        var service = CreateService(context);
 
         var response = await service.LoginAsync(new LoginRequest(user.Email, "secret123"));
         var token = new JwtSecurityTokenHandler().ReadJwtToken(response.Token);
@@ -104,7 +107,7 @@ public class AuthServiceTests
         user.PasswordHash = new PasswordHasher<User>().HashPassword(user, "secret123");
         context.Users.Add(user);
         await context.SaveChangesAsync();
-        var service = new AuthService(context, Configuration);
+        var service = CreateService(context);
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             service.LoginAsync(new LoginRequest(email, password)));
@@ -116,7 +119,7 @@ public class AuthServiceTests
         await using var context = TestDbContextFactory.Create();
         context.Users.Add(new User { Email = "user@mail.com", PasswordHash = "invalid-hash" });
         await context.SaveChangesAsync();
-        var service = new AuthService(context, Configuration);
+        var service = CreateService(context);
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             service.LoginAsync(new LoginRequest("user@mail.com", "secret123")));
@@ -130,9 +133,38 @@ public class AuthServiceTests
         user.PasswordHash = new PasswordHasher<User>().HashPassword(user, "secret123");
         context.Users.Add(user);
         await context.SaveChangesAsync();
-        var service = new AuthService(context, new ConfigurationBuilder().Build());
+        var service = CreateService(context, new ConfigurationBuilder().Build());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             service.LoginAsync(new LoginRequest(user.Email, "secret123")));
     }
+
+    [Fact]
+    public async Task Authentication_LogsOutcomeWithoutCredentialsOrToken()
+    {
+        await using var context = TestDbContextFactory.Create();
+        var logger = new TestLogger<AuthService>();
+        var service = new AuthService(context, Configuration, logger);
+
+        await service.RegisterAsync(new RegisterRequest("User", "user@mail.com", "secret123"));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            service.LoginAsync(new LoginRequest("user@mail.com", "wrong-password")));
+        var response = await service.LoginAsync(new LoginRequest("user@mail.com", "secret123"));
+
+        Assert.Equal(3, logger.Entries.Count);
+        Assert.Equal(LogLevel.Warning, logger.Entries[1].Level);
+        Assert.Contains("Login failed", logger.Entries[1].Message);
+        Assert.Equal(LogLevel.Information, logger.Entries[2].Level);
+        Assert.Contains("logged in", logger.Entries[2].Message);
+        Assert.All(logger.Entries, entry =>
+        {
+            Assert.DoesNotContain("@", entry.Message);
+            Assert.DoesNotContain("secret123", entry.Message);
+            Assert.DoesNotContain("wrong-password", entry.Message);
+            Assert.DoesNotContain(response.Token, entry.Message);
+        });
+    }
+
+    private static AuthService CreateService(AppDbContext context, IConfiguration? configuration = null) =>
+        new(context, configuration ?? Configuration, NullLogger<AuthService>.Instance);
 }

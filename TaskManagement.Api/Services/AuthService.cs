@@ -1,14 +1,12 @@
-using TaskManagement.Api.Data;
-using TaskManagement.Api.DTOs;
-using TaskManagement.Api.Models;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-
-
+using TaskManagement.Api.Data;
+using TaskManagement.Api.DTOs;
+using TaskManagement.Api.Models;
 
 namespace TaskManagement.Api.Services;
 
@@ -16,18 +14,20 @@ public class AuthService
 {
     private readonly AppDbContext _dbContext;
     private readonly IConfiguration _configuration;
+    private readonly ILogger<AuthService> _logger;
 
-    public AuthService(AppDbContext dbContext, IConfiguration configuration)
+    public AuthService(AppDbContext dbContext, IConfiguration configuration, ILogger<AuthService> logger)
     {
         _dbContext = dbContext;
         _configuration = configuration;
+        _logger = logger;
     }
 
     public async Task RegisterAsync(RegisterRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
         {
-            throw new ArgumentException("Name is required");   
+            throw new ArgumentException("Name is required");
         }
 
         if (string.IsNullOrWhiteSpace(request.Email))
@@ -59,6 +59,7 @@ public class AuthService
 
         _dbContext.Users.Add(user);
         await _dbContext.SaveChangesAsync();
+        _logger.LogInformation("User {UserId} registered", user.Id);
     }
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request)
@@ -77,6 +78,7 @@ public class AuthService
 
         if (user == null)
         {
+            _logger.LogWarning("Login failed: invalid credentials");
             throw new UnauthorizedAccessException("Invalid email or password");
         }
 
@@ -89,15 +91,18 @@ public class AuthService
         }
         catch (FormatException)
         {
+            _logger.LogWarning("Login failed: invalid credentials");
             throw new UnauthorizedAccessException("Invalid email or password");
         }
 
         if (result == PasswordVerificationResult.Failed)
         {
+            _logger.LogWarning("Login failed: invalid credentials");
             throw new UnauthorizedAccessException("Invalid email or password");
         }
 
         var token = GenerateJwtToken(user);
+        _logger.LogInformation("User {UserId} logged in", user.Id);
         return new AuthResponse(token);
     }
 
@@ -133,5 +138,4 @@ public class AuthService
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
-
 }

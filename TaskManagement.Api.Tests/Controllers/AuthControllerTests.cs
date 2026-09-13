@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 using TaskManagement.Api.Controllers;
 using TaskManagement.Api.DTOs;
 using TaskManagement.Api.Services;
@@ -58,6 +59,7 @@ public class AuthControllerTests
             })
             .Build();
 
-        return new AuthController(new AuthService(context, configuration));
+        return new AuthController(new AuthService(
+            context, configuration, NullLogger<AuthService>.Instance));
     }
 }

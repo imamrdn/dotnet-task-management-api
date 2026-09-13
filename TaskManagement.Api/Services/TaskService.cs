@@ -193,12 +193,22 @@ public class TaskService : ITaskService
         CreateTaskRequest request,
         CancellationToken cancellationToken = default)
     {
+        var owner = await _dbContext.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(user => user.Id == userId, cancellationToken);
+        if (owner is null)
+        {
+            throw new UnauthorizedAccessException("User not found");
+        }
+
         var task = new TaskItem
         {
             Title = request.Title,
             Description = request.Description,
             IsCompleted = false,
             CreatedAt = DateTime.UtcNow,
+            OwnerNameSnapshot = owner.Name,
+            OwnerEmailSnapshot = owner.Email,
             UserId = userId
         };
 

@@ -155,16 +155,29 @@ public class TaskServiceTests
     public async Task CreateTaskAsync_AssignsOwnerAndDefaultsToIncomplete()
     {
         await using var context = TestDbContextFactory.Create();
+        context.Users.Add(new User { Id = 7, Name = "Owner", Email = "owner@mail.com" });
+        await context.SaveChangesAsync();
 
         var result = await CreateService(context)
             .CreateTaskAsync(7, new CreateTaskRequest("Title", "Description"));
 
         var task = Assert.Single(context.Tasks);
         Assert.Equal(7, task.UserId);
+        Assert.Equal("Owner", task.OwnerNameSnapshot);
+        Assert.Equal("owner@mail.com", task.OwnerEmailSnapshot);
         Assert.True(task.CreatedAt > DateTime.MinValue);
         Assert.Null(task.UpdatedAt);
         Assert.Null(task.DeletedAt);
         Assert.False(result.IsCompleted);
+    }
+
+    [Fact]
+    public async Task CreateTaskAsync_MissingOwner_ThrowsUnauthorized()
+    {
+        await using var context = TestDbContextFactory.Create();
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            CreateService(context).CreateTaskAsync(7, new CreateTaskRequest("Title", "Description")));
     }
 
     [Fact]
@@ -205,6 +218,8 @@ public class TaskServiceTests
         await using var context = TestDbContextFactory.Create();
         var logger = new TestLogger<TaskService>();
         var service = new TaskService(context, logger);
+        context.Users.Add(new User { Id = 7, Name = "Owner", Email = "owner@mail.com" });
+        await context.SaveChangesAsync();
 
         var created = await service.CreateTaskAsync(7,
             new CreateTaskRequest("Title", "Description"));

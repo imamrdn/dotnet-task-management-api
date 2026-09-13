@@ -29,6 +29,8 @@ public class TaskSeeder
                 Description = "Inspect the users management endpoint as an admin",
                 IsCompleted = true,
                 CreatedAt = now,
+                OwnerNameSnapshot = admin.Name,
+                OwnerEmailSnapshot = admin.Email,
                 UserId = admin.Id
             },
             new TaskItem
@@ -37,6 +39,8 @@ public class TaskSeeder
                 Description = "Verify seeded users and tasks",
                 IsCompleted = true,
                 CreatedAt = now,
+                OwnerNameSnapshot = admin.Name,
+                OwnerEmailSnapshot = admin.Email,
                 UserId = admin.Id
             },
             new TaskItem
@@ -45,6 +49,8 @@ public class TaskSeeder
                 Description = "Use this admin account to test protected user endpoints",
                 IsCompleted = false,
                 CreatedAt = now,
+                OwnerNameSnapshot = admin.Name,
+                OwnerEmailSnapshot = admin.Email,
                 UserId = admin.Id
             }
         };
@@ -70,6 +76,8 @@ public class TaskSeeder
                 Description = "Practice creating tasks as a regular user",
                 IsCompleted = true,
                 CreatedAt = now,
+                OwnerNameSnapshot = user.Name,
+                OwnerEmailSnapshot = user.Email,
                 UserId = user.Id
             },
             new TaskItem
@@ -78,6 +86,8 @@ public class TaskSeeder
                 Description = "Confirm regular users only see their own tasks",
                 IsCompleted = true,
                 CreatedAt = now,
+                OwnerNameSnapshot = user.Name,
+                OwnerEmailSnapshot = user.Email,
                 UserId = user.Id
             },
             new TaskItem
@@ -86,6 +96,8 @@ public class TaskSeeder
                 Description = "Confirm regular users receive forbidden access",
                 IsCompleted = false,
                 CreatedAt = now,
+                OwnerNameSnapshot = user.Name,
+                OwnerEmailSnapshot = user.Email,
                 UserId = user.Id
             }
         };

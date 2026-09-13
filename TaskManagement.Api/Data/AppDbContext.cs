@@ -29,7 +29,7 @@ public class AppDbContext : DbContext
             .HasIndex(task => task.UserId);
 
         modelBuilder.Entity<TaskItem>()
-            .HasIndex(task => new { task.UserId, task.Id });
+            .HasIndex(task => new { task.UserId, task.IsDeleted, task.Id });
 
         modelBuilder.Entity<TaskItem>()
             .Property(task => task.CreatedAt)

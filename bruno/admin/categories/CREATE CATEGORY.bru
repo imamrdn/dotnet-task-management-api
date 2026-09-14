@@ -1,0 +1,26 @@
+meta {
+  name: CREATE CATEGORY
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/categories
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  {
+    "name": "Learning"
+  }
+}

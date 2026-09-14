@@ -1,0 +1,26 @@
+meta {
+  name: UPDATE CATEGORY
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/api/categories/{{categoryId}}
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  {
+    "name": "Learning Updated"
+  }
+}

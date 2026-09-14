@@ -27,15 +27,17 @@ public class SeederTests
         var userSeeder = new UserSeeder(context);
         var admin = await userSeeder.SeedAdminAsync();
         var user = await userSeeder.SeedRegularUserAsync();
+        var categories = await new CategorySeeder(context).SeedAsync();
         var seeder = new TaskSeeder(context);
 
-        await seeder.SeedAdminTasksAsync(admin);
-        await seeder.SeedUserTasksAsync(user);
-        await seeder.SeedAdminTasksAsync(admin);
-        await seeder.SeedUserTasksAsync(user);
+        await seeder.SeedAdminTasksAsync(admin, categories);
+        await seeder.SeedUserTasksAsync(user, categories);
+        await seeder.SeedAdminTasksAsync(admin, categories);
+        await seeder.SeedUserTasksAsync(user, categories);
 
         Assert.Equal(3, context.Tasks.Count(task => task.UserId == admin.Id));
         Assert.Equal(3, context.Tasks.Count(task => task.UserId == user.Id));
+        Assert.Equal(12, context.TaskCategories.Count());
         Assert.All(context.Tasks, task => Assert.True(task.CreatedAt > DateTime.MinValue));
     }
 
@@ -46,11 +48,14 @@ public class SeederTests
         var seeder = new DatabaseSeeder(
             context,
             new UserSeeder(context),
+            new CategorySeeder(context),
             new TaskSeeder(context));
 
         await seeder.SeedAsync();
 
         Assert.Equal(2, context.Users.Count());
         Assert.Equal(6, context.Tasks.Count());
+        Assert.Equal(3, context.Categories.Count());
+        Assert.Equal(12, context.TaskCategories.Count());
     }
 }

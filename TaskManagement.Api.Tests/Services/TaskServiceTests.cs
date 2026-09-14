@@ -230,6 +230,46 @@ public class TaskServiceTests
     }
 
     [Fact]
+    public async Task TaskCategories_CanBeAssignedListedAndReplaced()
+    {
+        await using var context = TestDbContextFactory.Create();
+        context.Tasks.Add(new TaskItem { Id = 1, UserId = 1, Title = "Task" });
+        context.Categories.AddRange(
+            new Category { Id = 1, Name = "Backend" },
+            new Category { Id = 2, Name = "Database" },
+            new Category { Id = 3, Name = "Security" });
+        await context.SaveChangesAsync();
+        var service = CreateService(context);
+
+        var assigned = await service.AssignTaskCategoriesAsync(
+            1,
+            1,
+            new AssignTaskCategoriesRequest([1, 2]));
+        var listed = await service.GetTaskCategoriesAsync(1, 1);
+        var replaced = await service.AssignTaskCategoriesAsync(
+            1,
+            1,
+            new AssignTaskCategoriesRequest([3]));
+
+        Assert.Equal(["Backend", "Database"], assigned!.Select(category => category.Name));
+        Assert.Equal(["Backend", "Database"], listed!.Select(category => category.Name));
+        Assert.Equal(["Security"], replaced!.Select(category => category.Name));
+        Assert.Single(context.TaskCategories);
+        Assert.Null(await service.GetTaskCategoriesAsync(2, 1));
+    }
+
+    [Fact]
+    public async Task AssignTaskCategoriesAsync_MissingCategory_ThrowsArgumentException()
+    {
+        await using var context = TestDbContextFactory.Create();
+        context.Tasks.Add(new TaskItem { Id = 1, UserId = 1, Title = "Task" });
+        await context.SaveChangesAsync();
+
+        await Assert.ThrowsAsync<ArgumentException>(() => CreateService(context)
+            .AssignTaskCategoriesAsync(1, 1, new AssignTaskCategoriesRequest([99])));
+    }
+
+    [Fact]
     public async Task DeleteTaskAsync_DeletesOwnedTaskOnly()
     {
         await using var context = TestDbContextFactory.Create();

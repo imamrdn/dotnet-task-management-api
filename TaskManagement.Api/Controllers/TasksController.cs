@@ -142,6 +142,41 @@ public class TasksController : ControllerBase
             : Ok(ApiResponse<TaskResponse>.Ok("Task completion updated successfully", response));
     }
 
+    [HttpGet("{id:int}/categories")]
+    public async Task<IActionResult> GetTaskCategories(int id, CancellationToken cancellationToken = default)
+    {
+        if (id <= 0)
+        {
+            return NotFound(ApiResponse<object>.Error("Task not found"));
+        }
+
+        var userId = GetUserIdFromClaims();
+        var categories = await _taskService.GetTaskCategoriesAsync(userId, id, cancellationToken);
+
+        return categories is null
+            ? NotFound(ApiResponse<object>.Error("Task not found"))
+            : Ok(ApiResponse<List<CategoryResponse>>.Ok("Task categories retrieved successfully", categories));
+    }
+
+    [HttpPut("{id:int}/categories")]
+    public async Task<IActionResult> AssignTaskCategories(
+        int id,
+        AssignTaskCategoriesRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (id <= 0)
+        {
+            return NotFound(ApiResponse<object>.Error("Task not found"));
+        }
+
+        var userId = GetUserIdFromClaims();
+        var categories = await _taskService.AssignTaskCategoriesAsync(userId, id, request, cancellationToken);
+
+        return categories is null
+            ? NotFound(ApiResponse<object>.Error("Task not found"))
+            : Ok(ApiResponse<List<CategoryResponse>>.Ok("Task categories updated successfully", categories));
+    }
+
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteTask(int id, CancellationToken cancellationToken = default)
     {

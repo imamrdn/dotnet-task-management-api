@@ -1,0 +1,19 @@
+meta {
+  name: CATEGORY LIST
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/categories
+  body: none
+  auth: bearer
+}
+
+headers {
+  Accept: application/json
+}
+
+auth:bearer {
+  token: {{authToken}}
+}

@@ -1,0 +1,19 @@
+meta {
+  name: TASK CATEGORIES
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/tasks/{{taskId}}/categories
+  body: none
+  auth: bearer
+}
+
+headers {
+  Accept: application/json
+}
+
+auth:bearer {
+  token: {{authToken}}
+}

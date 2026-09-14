@@ -1,0 +1,26 @@
+meta {
+  name: ASSIGN TASK CATEGORIES
+  type: http
+  seq: 9
+}
+
+put {
+  url: {{baseUrl}}/api/tasks/{{taskId}}/categories
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  {
+    "categoryIds": [1, 2]
+  }
+}

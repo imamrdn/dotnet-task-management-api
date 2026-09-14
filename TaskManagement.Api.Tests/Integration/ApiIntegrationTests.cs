@@ -281,6 +281,44 @@ public class ApiIntegrationTests : IClassFixture<PostgresWebApplicationFactory>
     }
 
     [Fact]
+    public async Task CategoryEndpoints_EnforceAdminRoleAndReturnCategories()
+    {
+        using var userClient = await CreateAuthenticatedClientAsync("user@mail.com");
+        using var adminClient = await CreateAuthenticatedClientAsync("admin@mail.com");
+
+        var forbiddenResponse = await userClient.GetAsync("/api/categories");
+        var adminResponse = await adminClient.GetAsync("/api/categories");
+        var result = await adminResponse.Content.ReadFromJsonAsync<ApiResponse<List<CategoryResponse>>>();
+
+        Assert.Equal(HttpStatusCode.Forbidden, forbiddenResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, adminResponse.StatusCode);
+        Assert.Contains(result!.Data!, category => category.Name == "Backend");
+        Assert.Contains(result.Data!, category => category.Name == "Database");
+    }
+
+    [Fact]
+    public async Task TaskCategoryEndpoint_AssignsManyCategoriesToOwnedTask()
+    {
+        using var userClient = await CreateAuthenticatedClientAsync("user@mail.com");
+
+        var createResponse = await userClient.PostAsJsonAsync(
+            "/api/tasks",
+            new CreateTaskRequest("Categorized task", "Testing many-to-many"));
+        var created = (await createResponse.Content.ReadFromJsonAsync<ApiResponse<TaskResponse>>())!.Data!;
+
+        var assignResponse = await userClient.PutAsJsonAsync(
+            $"/api/tasks/{created.Id}/categories",
+            new AssignTaskCategoriesRequest([1, 2]));
+        var getResponse = await userClient.GetAsync($"/api/tasks/{created.Id}/categories");
+        var result = await getResponse.Content.ReadFromJsonAsync<ApiResponse<List<CategoryResponse>>>();
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, assignResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+        Assert.Equal(["Backend", "Database"], result!.Data!.Select(category => category.Name));
+    }
+
+    [Fact]
     public async Task AdminTaskOwnerEndpoint_EnforcesAdminRoleAndReturnsOwnerData()
     {
         using var userClient = await CreateAuthenticatedClientAsync("user@mail.com");
@@ -438,6 +476,7 @@ public class ApiIntegrationTests : IClassFixture<PostgresWebApplicationFactory>
             PasswordHash = "test-only"
         });
         await context.SaveChangesAsync();
+        var taskCountBeforeRefresh = await context.Tasks.CountAsync();
 
         await context.Database.ExecuteSqlRawAsync(
             "ALTER TABLE users ADD CONSTRAINT test_seed_failure " +
@@ -451,7 +490,7 @@ public class ApiIntegrationTests : IClassFixture<PostgresWebApplicationFactory>
             await using var verifyScope = _factory.Services.CreateAsyncScope();
             var verifyContext = verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
             Assert.True(await verifyContext.Users.AnyAsync(user => user.Email == "preserved@mail.com"));
-            Assert.Equal(6, await verifyContext.Tasks.CountAsync());
+            Assert.Equal(taskCountBeforeRefresh, await verifyContext.Tasks.CountAsync());
         }
         finally
         {

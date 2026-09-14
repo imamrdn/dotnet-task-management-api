@@ -282,6 +282,71 @@ public class TaskService : ITaskService
         );
     }
 
+    public async Task<List<CategoryResponse>?> GetTaskCategoriesAsync(
+        int userId,
+        int id,
+        CancellationToken cancellationToken = default)
+    {
+        var taskExists = await _dbContext.Tasks
+            .AsNoTracking()
+            .WhereActive()
+            .AnyAsync(task => task.Id == id && task.UserId == userId, cancellationToken);
+        if (!taskExists)
+        {
+            return null;
+        }
+
+        return await _dbContext.TaskCategories
+            .AsNoTracking()
+            .Where(taskCategory => taskCategory.TaskItemId == id)
+            .OrderBy(taskCategory => taskCategory.Category.Name)
+            .Select(taskCategory => new CategoryResponse(
+                taskCategory.Category.Id,
+                taskCategory.Category.Name
+            ))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<CategoryResponse>?> AssignTaskCategoriesAsync(
+        int userId,
+        int id,
+        AssignTaskCategoriesRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var task = await _dbContext.Tasks
+            .WhereActive()
+            .Include(task => task.TaskCategories)
+            .FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId, cancellationToken);
+        if (task is null)
+        {
+            return null;
+        }
+
+        var categoryIds = request.CategoryIds.Distinct().ToList();
+        var existingCategoryIds = await _dbContext.Categories
+            .Where(category => categoryIds.Contains(category.Id))
+            .Select(category => category.Id)
+            .ToListAsync(cancellationToken);
+
+        if (existingCategoryIds.Count != categoryIds.Count)
+        {
+            throw new ArgumentException("One or more categories were not found");
+        }
+
+        task.TaskCategories.Clear();
+        task.TaskCategories.AddRange(existingCategoryIds.Select(categoryId => new TaskCategory
+        {
+            TaskItemId = task.Id,
+            CategoryId = categoryId
+        }));
+        task.UpdatedAt = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Task {TaskId} categories updated by user {UserId}", task.Id, userId);
+
+        return await GetTaskCategoriesAsync(userId, id, cancellationToken);
+    }
+
     public async Task<bool> DeleteTaskAsync(
         int userId,
         int id,

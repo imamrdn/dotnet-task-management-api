@@ -101,9 +101,11 @@ builder.Services.AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("database");
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<DatabaseSeeder>();
 builder.Services.AddScoped<UserSeeder>();
+builder.Services.AddScoped<CategorySeeder>();
 builder.Services.AddScoped<TaskSeeder>();
 
 var app = builder.Build();

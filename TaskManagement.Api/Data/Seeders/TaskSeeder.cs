@@ -12,7 +12,7 @@ public class TaskSeeder
         _dbContext = dbContext;
     }
 
-    public async Task SeedAdminTasksAsync(User admin)
+    public async Task SeedAdminTasksAsync(User admin, IReadOnlyList<Category> categories)
     {
         var hasTasks = await _dbContext.Tasks.AnyAsync(task => task.UserId == admin.Id);
         if (hasTasks)
@@ -57,9 +57,10 @@ public class TaskSeeder
 
         _dbContext.Tasks.AddRange(tasks);
         await _dbContext.SaveChangesAsync();
+        await AssignCategoriesAsync(tasks, categories);
     }
 
-    public async Task SeedUserTasksAsync(User user)
+    public async Task SeedUserTasksAsync(User user, IReadOnlyList<Category> categories)
     {
         var hasTasks = await _dbContext.Tasks.AnyAsync(task => task.UserId == user.Id);
         if (hasTasks)
@@ -103,6 +104,29 @@ public class TaskSeeder
         };
 
         _dbContext.Tasks.AddRange(tasks);
+        await _dbContext.SaveChangesAsync();
+        await AssignCategoriesAsync(tasks, categories);
+    }
+
+    private async Task AssignCategoriesAsync(IReadOnlyList<TaskItem> tasks, IReadOnlyList<Category> categories)
+    {
+        if (categories.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var task in tasks)
+        {
+            foreach (var category in categories.Take(2))
+            {
+                _dbContext.TaskCategories.Add(new TaskCategory
+                {
+                    TaskItemId = task.Id,
+                    CategoryId = category.Id
+                });
+            }
+        }
+
         await _dbContext.SaveChangesAsync();
     }
 }

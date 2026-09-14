@@ -164,6 +164,29 @@ public class TasksControllerTests
     }
 
     [Fact]
+    public async Task TaskCategories_CoversNotFoundAndSuccess()
+    {
+        var controller = CreateController();
+        var categories = new List<CategoryResponse>
+        {
+            new(1, "Backend")
+        };
+        var request = new AssignTaskCategoriesRequest([1]);
+        _service.Setup(service => service.GetTaskCategoriesAsync(7, 1))
+            .ReturnsAsync(categories);
+        _service.Setup(service => service.AssignTaskCategoriesAsync(7, 1, request))
+            .ReturnsAsync(categories);
+
+        Assert.IsType<NotFoundObjectResult>(await controller.GetTaskCategories(0));
+        Assert.IsType<OkObjectResult>(await controller.GetTaskCategories(1));
+        Assert.IsType<NotFoundObjectResult>(await controller.GetTaskCategories(2));
+
+        Assert.IsType<NotFoundObjectResult>(await controller.AssignTaskCategories(0, request));
+        Assert.IsType<OkObjectResult>(await controller.AssignTaskCategories(1, request));
+        Assert.IsType<NotFoundObjectResult>(await controller.AssignTaskCategories(2, request));
+    }
+
+    [Fact]
     public async Task DeleteTask_ReturnsExpectedStatus()
     {
         _service.Setup(service => service.DeleteTaskAsync(7, 1)).ReturnsAsync(true);

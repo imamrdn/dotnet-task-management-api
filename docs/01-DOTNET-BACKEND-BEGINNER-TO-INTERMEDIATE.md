@@ -892,6 +892,13 @@ bruno/admin/tasks
   TASK SUMMARY BY USER
   TOP TASK OWNERS
 
+bruno/admin/categories
+  CATEGORY LIST
+  CATEGORY BY ID
+  CREATE CATEGORY
+  UPDATE CATEGORY
+  DELETE CATEGORY
+
 bruno/tasks
   TASK LIST
   TASK BY ID
@@ -899,6 +906,8 @@ bruno/tasks
   DELETE TASK
   PUT TASK
   PATCH TASK COMPLETION
+  TASK CATEGORIES
+  ASSIGN TASK CATEGORIES
   TASK SEARCH
   TASK FILTER COMPLETED
   TASK SORT
@@ -963,7 +972,7 @@ user_id
 
 - [x] One-to-One (`User` -> `UserProfile`, satu user hanya punya satu profile)
 - [x] One-to-Many
-- [ ] Many-to-Many (belum relevan; nanti cocok untuk fitur `Task` ↔ `Category/Tag` atau `User` ↔ `Workspace`)
+- [x] Many-to-Many (`Task` ↔ `Category` melalui tabel join `task_categories`)
 - [x] Foreign Key
 - [x] Navigation Property
 - [x] `Include()`

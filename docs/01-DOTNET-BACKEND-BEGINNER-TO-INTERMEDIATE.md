@@ -1069,8 +1069,8 @@ Materi tambahan sesuai kebutuhan, bukan blocker File 01:
 - [ ] `Func`
 - [ ] `Action`
 - [ ] `Predicate`
-- [ ] Records
-- [ ] Pattern matching
+- [x] Records (DTO request/response memakai `record`, misalnya `TaskResponse`, `ApiResponse<T>`, `CategoryResponse`)
+- [x] Pattern matching (`is null`, `is not null`, dan switch expression dipakai di service/exception handler)
 - [ ] Generic constraints
 
 ## SQL Intermediate

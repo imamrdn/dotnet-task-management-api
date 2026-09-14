@@ -11,12 +11,14 @@ public class AppDbContext : DbContext
 
     public DbSet<TaskItem> Tasks => Set<TaskItem>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<TaskItem>().ToTable("tasks");
         modelBuilder.Entity<User>().ToTable("users");
+        modelBuilder.Entity<UserProfile>().ToTable("user_profiles");
         modelBuilder.Entity<RefreshToken>().ToTable("refresh_tokens");
 
         modelBuilder.Entity<User>()
@@ -53,5 +55,18 @@ public class AppDbContext : DbContext
             .HasOne(refreshToken => refreshToken.User)
             .WithMany(user => user.RefreshTokens)
             .HasForeignKey(refreshToken => refreshToken.UserId);
+
+        modelBuilder.Entity<UserProfile>()
+            .HasIndex(profile => profile.UserId)
+            .IsUnique();
+
+        modelBuilder.Entity<UserProfile>()
+            .Property(profile => profile.CreatedAt)
+            .HasDefaultValueSql("now()");
+
+        modelBuilder.Entity<UserProfile>()
+            .HasOne(profile => profile.User)
+            .WithOne(user => user.Profile)
+            .HasForeignKey<UserProfile>(profile => profile.UserId);
     }
 }

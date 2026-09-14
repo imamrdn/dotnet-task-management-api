@@ -32,10 +32,12 @@ public class UserSeeder
     private async Task<User> SeedUserAsync(string name, string email, string role)
     {
         var existingUser = await _dbContext.Users
+            .Include(user => user.Profile)
             .FirstOrDefaultAsync(user => user.Email == email);
 
         if (existingUser is not null)
         {
+            await EnsureProfileAsync(existingUser);
             return existingUser;
         }
 
@@ -52,7 +54,27 @@ public class UserSeeder
 
         _dbContext.Users.Add(user);
         await _dbContext.SaveChangesAsync();
+        await EnsureProfileAsync(user);
 
         return user;
+    }
+
+    private async Task EnsureProfileAsync(User user)
+    {
+        var hasProfile = user.Profile is not null ||
+            await _dbContext.UserProfiles.AnyAsync(profile => profile.UserId == user.Id);
+        if (hasProfile)
+        {
+            return;
+        }
+
+        _dbContext.UserProfiles.Add(new UserProfile
+        {
+            UserId = user.Id,
+            Bio = $"{user.Role} account for Task Management learning",
+            Location = "Learning Workspace",
+            CreatedAt = DateTime.UtcNow
+        });
+        await _dbContext.SaveChangesAsync();
     }
 }

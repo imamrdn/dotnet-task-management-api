@@ -258,6 +258,29 @@ public class ApiIntegrationTests : IClassFixture<PostgresWebApplicationFactory>
     }
 
     [Fact]
+    public async Task UserProfileEndpoint_EnforcesAdminRoleAndPersistsOneToOneProfile()
+    {
+        using var userClient = await CreateAuthenticatedClientAsync("user@mail.com");
+        using var adminClient = await CreateAuthenticatedClientAsync("admin@mail.com");
+
+        var forbiddenResponse = await userClient.PutAsJsonAsync(
+            "/api/users/2/profile",
+            new UpsertUserProfileRequest("User bio", "Bandung"));
+        var updateResponse = await adminClient.PutAsJsonAsync(
+            "/api/users/2/profile",
+            new UpsertUserProfileRequest("User bio", "Bandung"));
+        var getResponse = await adminClient.GetAsync("/api/users/2/profile");
+        var result = await getResponse.Content.ReadFromJsonAsync<ApiResponse<UserProfileResponse>>();
+
+        Assert.Equal(HttpStatusCode.Forbidden, forbiddenResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+        Assert.Equal(2, result!.Data!.UserId);
+        Assert.Equal("User bio", result.Data.Bio);
+        Assert.Equal("Bandung", result.Data.Location);
+    }
+
+    [Fact]
     public async Task AdminTaskOwnerEndpoint_EnforcesAdminRoleAndReturnsOwnerData()
     {
         using var userClient = await CreateAuthenticatedClientAsync("user@mail.com");

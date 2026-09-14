@@ -600,6 +600,8 @@ User
 ```text
 POST /api/auth/register
 POST /api/auth/login
+POST /api/auth/refresh
+POST /api/auth/logout
 ```
 
 ### Register Flow
@@ -627,7 +629,9 @@ Verify Password
        ↓
 Generate JWT
        ↓
-Return Token
+Generate Refresh Token
+       ↓
+Return Access Token + Refresh Token
 ```
 
 ### Protected Endpoint
@@ -645,8 +649,8 @@ Authorization: Bearer <token>
 - [x] Claims
 - [x] Password Hashing
 - [x] Access Token
-- [ ] Refresh Token
-- [ ] Advanced authorization policy
+- [x] Refresh Token
+- [x] Advanced authorization policy
 - [x] `[Authorize]`
 
 ### Target
@@ -660,11 +664,17 @@ Yang sudah diterapkan:
 - `User` model dengan `PasswordHash`
 - `POST /api/auth/register`
 - `POST /api/auth/login`
+- `POST /api/auth/refresh`
+- `POST /api/auth/logout`
 - password hashing menggunakan `PasswordHasher<User>`
 - JWT generation saat login berhasil
+- refresh token disimpan sebagai hash di tabel `refresh_tokens`
+- refresh token rotation saat `POST /api/auth/refresh`
+- refresh token revocation saat `POST /api/auth/logout`
 - JWT Bearer authentication middleware
 - `[Authorize]` pada `TasksController`
-- Bruno login menyimpan token ke `authToken`
+- policy `AdminOnly` untuk endpoint admin
+- Bruno login menyimpan access token ke `authToken` dan refresh token ke `refreshToken`
 - request task Bruno memakai Bearer auth dari `authToken`
 
 Protected endpoint yang sudah dipraktikkan:
@@ -674,10 +684,11 @@ GET     /api/tasks?page=1&limit=10
 GET     /api/tasks/{id}
 POST    /api/tasks
 PUT     /api/tasks/{id}
+PATCH   /api/tasks/{id}/completion
 DELETE  /api/tasks/{id}
 ```
 
-Catatan: authorization berbasis role sudah diterapkan pada endpoint user. Permission granular dan policy-based authorization belum diterapkan.
+Catatan: authorization berbasis role dan policy `AdminOnly` sudah diterapkan. Permission granular per aksi/resource belum diterapkan karena belum dibutuhkan oleh project saat ini.
 
 ---
 
@@ -724,7 +735,7 @@ DELETE /api/users    ✓
 - [x] Claims
 - [x] Policies
 - [x] `[Authorize]`
-- [x] `[Authorize(Roles = "Admin")]`
+- [x] `[Authorize(Roles = "Admin")]` (pernah diterapkan; sekarang dirapikan menjadi policy `AdminOnly`)
 
 Status: ✅ selesai dasar.
 
@@ -873,6 +884,8 @@ bruno/admin/users
   CREATE USER
   UPDATE USER
   DELETE USER
+  USER PROFILE
+  UPSERT USER PROFILE
 
 bruno/admin/tasks
   TASK LIST WITH OWNERS
@@ -948,9 +961,9 @@ user_id
 
 ### Pelajari
 
-- [ ] One-to-One
+- [x] One-to-One (`User` -> `UserProfile`, satu user hanya punya satu profile)
 - [x] One-to-Many
-- [ ] Many-to-Many
+- [ ] Many-to-Many (belum relevan; nanti cocok untuk fitur `Task` ↔ `Category/Tag` atau `User` ↔ `Workspace`)
 - [x] Foreign Key
 - [x] Navigation Property
 - [x] `Include()`
@@ -1038,7 +1051,7 @@ public async Task GetTask_WhenTaskExists_ReturnsTask()
 - [x] Lambda expression dan extension methods (`Where`, `Select`, filter task aktif)
 - [x] `IEnumerable<T>` vs `IQueryable<T>` (query database sampai `ToListAsync()`, mapping setelah materialisasi)
 - [x] `CancellationToken` (diteruskan dari controller ke service dan EF Core)
-- [ ] `Task.WhenAll()`
+- [ ] `Task.WhenAll()` (belum diterapkan; belum ada operasi async independen yang aman. Hindari parallel query pada satu `DbContext`)
 - [x] Async exception handling (exception dari async service ditangani global handler; request canceled tidak diperlakukan sebagai error 500)
 
 Materi tambahan sesuai kebutuhan, bukan blocker File 01:
@@ -1056,16 +1069,16 @@ Materi tambahan sesuai kebutuhan, bukan blocker File 01:
 - [x] `JOIN`, `GROUP BY`, `HAVING`
 - [x] Aggregate query (`COUNT`, `ORDER BY COUNT`, `LIMIT`)
 - [x] Subquery
-- [ ] CTE
+- [ ] CTE (dipahami sebagai query sementara bernama untuk report/agregasi bertahap; belum diterapkan karena CRUD utama masih cukup dengan LINQ/query biasa)
 - [x] Index (index task disesuaikan dengan query aktif)
 - [x] Composite index (`tasks(UserId, IsDeleted, Id)` untuk filter user + soft delete + sort/detail)
 - [x] Unique index (`users.Email` menjaga email tidak duplikat)
 - [x] `EXPLAIN` (melihat rencana query task aktif)
 - [x] `EXPLAIN ANALYZE` (membandingkan estimasi dan eksekusi aktual)
 - [x] Membaca query plan (tabel kecil bisa memilih `Seq Scan`; index terlihat cocok lewat `IX_tasks_UserId_IsDeleted_Id`)
-- [ ] Transaction isolation level
-- [ ] Locking dasar
-- [ ] Deadlock dasar
+- [ ] Transaction isolation level (belum relevan diterapkan ke API; cocok untuk use case stok, booking, payment, atau claim task)
+- [ ] Locking dasar (belum relevan diterapkan; dipelajari saat ada konflik update bersamaan)
+- [ ] Deadlock dasar (belum relevan diterapkan; dipelajari sebagai mini-lab/database troubleshooting)
 - [x] Normalization (users dan tasks dipisah; tasks menyimpan `UserId`, bukan data user duplikat)
 - [x] Denormalization dasar (`tasks` menyimpan snapshot nama/email owner saat task dibuat)
 
@@ -1074,14 +1087,14 @@ Materi tambahan sesuai kebutuhan, bukan blocker File 01:
 - [x] Tracking vs `AsNoTracking()` (read-only query memakai `AsNoTracking()`, write query tetap tracking)
 - [x] Change Tracker dasar (update/delete memakai entity tracking agar `SaveChangesAsync()` mendeteksi perubahan)
 - [x] `Include()` (admin task owner endpoint mengambil task bersama data user pemilik)
-- [ ] `ThenInclude()`
+- [ ] `ThenInclude()` (belum relevan; project belum punya relasi bertingkat seperti `Workspace -> Projects -> Tasks`)
 - [x] Projection (`Select()` membentuk DTO dan mengambil field yang dibutuhkan sebelum `ToListAsync()`)
 - [x] N+1 problem (dihindari dengan `Include()`/projection, bukan query relasi di dalam loop)
 - [x] Eager loading (`Include()` memuat relasi user bersama query task)
 - [ ] Explicit loading (belum relevan diterapkan; kebutuhan relasi saat ini lebih jelas memakai `Include()`/projection)
 - [x] Transaction (`DatabaseSeeder.RefreshAsync()` memakai `BeginTransactionAsync()` agar truncate + seed menjadi satu proses)
-- [ ] Membaca generated SQL (gunakan `ToQueryString()` atau log EF Core saat belajar; belum perlu endpoint debug di API)
-- [ ] Query performance (fondasi sudah diterapkan: index, projection, pagination, `AsNoTracking()`, `EXPLAIN`; perlu evaluasi terukur sebelum checklist penuh)
+- [x] Membaca generated SQL (query `GET /api/tasks` diverifikasi mengambil kolom response saja, memakai `WHERE`, `ORDER BY`, dan `LIMIT/OFFSET`; tidak perlu endpoint debug di API)
+- [x] Query performance (`GET /api/tasks` dievaluasi dengan `EXPLAIN ANALYZE`; data kecil memilih `Seq Scan`, index `IX_tasks_UserId_IsDeleted_Id` terbukti cocok saat sequential scan dimatikan)
 
 Catatan:
 

@@ -57,6 +57,62 @@ public class UserService : IUserService
         return new UserResponse(user.Id, user.Name, user.Email);
     }
 
+    public async Task<UserProfileResponse?> GetUserProfileAsync(int userId)
+    {
+        return await _dbContext.UserProfiles
+            .AsNoTracking()
+            .Where(profile => profile.UserId == userId)
+            .Select(profile => new UserProfileResponse(
+                profile.Id,
+                profile.UserId,
+                profile.Bio,
+                profile.Location
+            ))
+            .FirstOrDefaultAsync();
+    }
+
+    public async Task<UserProfileResponse?> UpsertUserProfileAsync(
+        int userId,
+        UpsertUserProfileRequest request)
+    {
+        var userExists = await _dbContext.Users.AnyAsync(user => user.Id == userId);
+        if (!userExists)
+        {
+            return null;
+        }
+
+        var profile = await _dbContext.UserProfiles
+            .FirstOrDefaultAsync(profile => profile.UserId == userId);
+
+        if (profile is null)
+        {
+            profile = new UserProfile
+            {
+                UserId = userId,
+                Bio = request.Bio,
+                Location = request.Location,
+                CreatedAt = DateTime.UtcNow
+            };
+            _dbContext.UserProfiles.Add(profile);
+        }
+        else
+        {
+            profile.Bio = request.Bio;
+            profile.Location = request.Location;
+            profile.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await _dbContext.SaveChangesAsync();
+        _logger.LogInformation("Profile for user {UserId} upserted", userId);
+
+        return new UserProfileResponse(
+            profile.Id,
+            profile.UserId,
+            profile.Bio,
+            profile.Location
+        );
+    }
+
     public async Task<UserResponse> CreateUserAsync(CreateUserRequest request)
     {
         ValidateUserRequest(request.Name, request.Email);

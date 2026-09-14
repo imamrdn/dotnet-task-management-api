@@ -56,6 +56,36 @@ public class UsersController : ControllerBase
             ApiResponse<UserResponse>.Ok("User created successfully", user));
     }
 
+    [HttpGet("{id:int}/profile")]
+    public async Task<IActionResult> GetUserProfile(int id)
+    {
+        if (id <= 0)
+        {
+            return NotFound(ApiResponse<object>.Error("User profile not found"));
+        }
+
+        var profile = await _userService.GetUserProfileAsync(id);
+
+        return profile is null
+            ? NotFound(ApiResponse<object>.Error("User profile not found"))
+            : Ok(ApiResponse<UserProfileResponse>.Ok("User profile retrieved successfully", profile));
+    }
+
+    [HttpPut("{id:int}/profile")]
+    public async Task<IActionResult> UpsertUserProfile(int id, UpsertUserProfileRequest request)
+    {
+        if (id <= 0)
+        {
+            return NotFound(ApiResponse<object>.Error("User not found"));
+        }
+
+        var profile = await _userService.UpsertUserProfileAsync(id, request);
+
+        return profile is null
+            ? NotFound(ApiResponse<object>.Error("User not found"))
+            : Ok(ApiResponse<UserProfileResponse>.Ok("User profile saved successfully", profile));
+    }
+
     [HttpPut("{id:int}")]
     public async Task<IActionResult> UpdateUser(int id, UpdateUserRequest request)
     {

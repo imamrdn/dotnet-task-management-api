@@ -1,0 +1,27 @@
+meta {
+  name: UPSERT USER PROFILE
+  type: http
+  seq: 8
+}
+
+put {
+  url: {{baseUrl}}/api/users/{{userId}}/profile
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  {
+    "bio": "Learning backend development with .NET",
+    "location": "Indonesia"
+  }
+}

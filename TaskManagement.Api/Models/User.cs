@@ -9,4 +9,5 @@ public class User
     public string Role { get; set; } = "User";
     public List<TaskItem> Tasks { get; set; } = new();
     public List<RefreshToken> RefreshTokens { get; set; } = new();
+    public UserProfile? Profile { get; set; }
 }

@@ -37,6 +37,52 @@ public class UserServiceTests
     }
 
     [Fact]
+    public async Task GetUserProfileAsync_ReturnsProfileOrNull()
+    {
+        await using var context = TestDbContextFactory.Create();
+        context.Users.Add(new User { Id = 1, Name = "User", Email = "user@mail.com" });
+        context.UserProfiles.Add(new UserProfile
+        {
+            Id = 1,
+            UserId = 1,
+            Bio = "Bio",
+            Location = "Location"
+        });
+        await context.SaveChangesAsync();
+        var service = CreateService(context);
+
+        var result = await service.GetUserProfileAsync(1);
+
+        Assert.Equal("Bio", result!.Bio);
+        Assert.Null(await service.GetUserProfileAsync(99));
+    }
+
+    [Fact]
+    public async Task UpsertUserProfileAsync_CreatesUpdatesOrReturnsNull()
+    {
+        await using var context = TestDbContextFactory.Create();
+        context.Users.Add(new User { Id = 1, Name = "User", Email = "user@mail.com" });
+        await context.SaveChangesAsync();
+        var service = CreateService(context);
+
+        var created = await service.UpsertUserProfileAsync(
+            1,
+            new UpsertUserProfileRequest("Initial bio", "Initial location"));
+        var updated = await service.UpsertUserProfileAsync(
+            1,
+            new UpsertUserProfileRequest("Updated bio", "Updated location"));
+
+        Assert.Equal(created!.Id, updated!.Id);
+        Assert.Equal("Updated bio", updated.Bio);
+        Assert.Equal("Updated location", updated.Location);
+        Assert.Equal(1, context.UserProfiles.Count());
+        Assert.NotNull(Assert.Single(context.UserProfiles).UpdatedAt);
+        Assert.Null(await service.UpsertUserProfileAsync(
+            99,
+            new UpsertUserProfileRequest("Missing", "Missing")));
+    }
+
+    [Fact]
     public async Task GetUsersWithoutActiveTasksAsync_ReturnsUsersMatchedBySubquery()
     {
         await using var context = TestDbContextFactory.Create();

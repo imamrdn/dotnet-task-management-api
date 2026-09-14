@@ -45,6 +45,17 @@ public class UsersControllerTests
     }
 
     [Fact]
+    public async Task GetUserProfile_ReturnsExpectedStatus()
+    {
+        _service.Setup(service => service.GetUserProfileAsync(1))
+            .ReturnsAsync(new UserProfileResponse(1, 1, "Bio", "Location"));
+
+        Assert.IsType<NotFoundObjectResult>(await CreateController().GetUserProfile(0));
+        Assert.IsType<OkObjectResult>(await CreateController().GetUserProfile(1));
+        Assert.IsType<NotFoundObjectResult>(await CreateController().GetUserProfile(2));
+    }
+
+    [Fact]
     public async Task CreateUser_ReturnsCreatedOrThrowsForGlobalHandler()
     {
         var request = new CreateUserRequest("User", "user@mail.com", "secret123");
@@ -61,6 +72,22 @@ public class UsersControllerTests
         _service.Setup(service => service.CreateUserAsync(request))
             .ThrowsAsync(new InvalidOperationException("duplicate"));
         await Assert.ThrowsAsync<InvalidOperationException>(() => CreateController().CreateUser(request));
+    }
+
+    [Fact]
+    public async Task UpsertUserProfile_ReturnsExpectedStatus()
+    {
+        var request = new UpsertUserProfileRequest("Bio", "Location");
+        var controller = CreateController();
+        _service.Setup(service => service.UpsertUserProfileAsync(1, request))
+            .ReturnsAsync(new UserProfileResponse(1, 1, request.Bio, request.Location));
+
+        Assert.IsType<NotFoundObjectResult>(await controller.UpsertUserProfile(0, request));
+        Assert.IsType<OkObjectResult>(await controller.UpsertUserProfile(1, request));
+
+        _service.Setup(service => service.UpsertUserProfileAsync(2, request))
+            .ReturnsAsync((UserProfileResponse?)null);
+        Assert.IsType<NotFoundObjectResult>(await controller.UpsertUserProfile(2, request));
     }
 
     [Fact]

@@ -24,6 +24,29 @@ public class TasksControllerTests
     }
 
     [Fact]
+    public async Task GetTasks_LimitExceedsMaximum_ReturnsBadRequest()
+    {
+        var result = await CreateController().GetTasks(1, 101, null, null, null, null);
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal("Limit must not exceed 100",
+            Assert.IsType<ApiResponse<object>>(badRequest.Value).Message);
+    }
+
+    [Fact]
+    public async Task GetTasks_DefaultPagination_UsesPageOneAndLimitTen()
+    {
+        var response = new PaginatedResponse<TaskResponse>([], 1, 10, 0, 0);
+        _service.Setup(service => service.GetTasksAsync(7, 1, 10, null, null, null, null))
+            .ReturnsAsync(response);
+
+        var result = await CreateController().GetTasks();
+
+        Assert.Same(response, Assert.IsType<ApiResponse<PaginatedResponse<TaskResponse>>>(
+            Assert.IsType<OkObjectResult>(result).Value).Data);
+    }
+
+    [Fact]
     public async Task GetTasks_ValidRequest_ReturnsServiceResponse()
     {
         var response = new PaginatedResponse<TaskResponse>([], 1, 10, 0, 0);

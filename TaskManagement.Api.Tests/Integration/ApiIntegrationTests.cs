@@ -450,6 +450,64 @@ public class ApiIntegrationTests : IClassFixture<PostgresWebApplicationFactory>
     }
 
     [Fact]
+    public async Task TaskList_WithoutPaginationParameters_UsesDefaults()
+    {
+        using var client = await CreateAuthenticatedClientAsync("user@mail.com");
+
+        var response = await client.GetAsync("/api/tasks");
+        var result = await response.Content.ReadFromJsonAsync<ApiResponse<PaginatedResponse<TaskResponse>>>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1, result!.Data!.Page);
+        Assert.Equal(10, result.Data.Limit);
+    }
+
+    [Fact]
+    public async Task TaskList_WhenLimitExceedsMaximum_ReturnsBadRequest()
+    {
+        using var client = await CreateAuthenticatedClientAsync("user@mail.com");
+
+        var response = await client.GetAsync("/api/tasks?page=1&limit=9999");
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<object>>();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("Limit must not exceed 100", body!.Message);
+    }
+
+    [Fact]
+    public async Task AssignTaskCategories_NullCategoryIds_ReturnsBadRequest()
+    {
+        using var client = await CreateAuthenticatedClientAsync("user@mail.com");
+
+        var createResponse = await client.PostAsJsonAsync(
+            "/api/tasks", new CreateTaskRequest("Task for null categories", "Validation test"));
+        var created = (await createResponse.Content.ReadFromJsonAsync<ApiResponse<TaskResponse>>())!.Data!;
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/tasks/{created.Id}/categories", new { categoryIds = (int[]?)null });
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<object>>();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.False(body!.Success);
+        Assert.Equal("CategoryIds is required", body.Message);
+    }
+
+    [Fact]
+    public async Task UpsertUserProfile_BioTooLong_ReturnsBadRequest()
+    {
+        using var adminClient = await CreateAuthenticatedClientAsync("admin@mail.com");
+
+        var response = await adminClient.PutAsJsonAsync(
+            "/api/users/2/profile",
+            new UpsertUserProfileRequest(new string('x', 501), "Bandung"));
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<object>>();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.False(body!.Success);
+        Assert.Equal("Bio must not exceed 500 characters", body.Message);
+    }
+
+    [Fact]
     public async Task TaskCrud_WorksThroughHttp()
     {
         using var client = await CreateAuthenticatedClientAsync("user@mail.com");

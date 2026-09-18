@@ -229,11 +229,12 @@ Namun ada beberapa hal yang terlihat "setengah jadi" atau tidak terpakai:
 
 3. **`AssignTaskCategoriesRequest` tidak punya validasi.** (`DTOs/AssignTaskCategoriesRequest.cs`)
    `List<int> CategoryIds` tidak diberi `[Required]`, sehingga body `{ "categoryIds": null }`
-   berpotensi menyebabkan error runtime (lihat Code Audit).
+   berpotensi menyebabkan error runtime (lihat Code Audit). — ✅ **Sudah diperbaiki (Step 2).**
 
 4. **Query parameter `page` dan `limit` di `GET /api/tasks` tidak punya nilai default.**
    (`Controllers/TasksController.cs` baris 22–24). Jika klien tidak mengirim `page`/`limit`,
    nilainya menjadi `0` dan endpoint mengembalikan 400 "Page must be greater than 0".
+   — ✅ **Sudah diperbaiki (Step 2): kini default 1 dan 10, plus batas atas 100.**
 
 5. **`AuthService` tidak memiliki interface**, padahal `TaskService`, `UserService`, `CategoryService`
    punya interface (`ITaskService`, dll). Ini inkonsistensi pola, bukan bug.
@@ -294,7 +295,9 @@ tambahkan cabang berdasarkan **tipe** exception, bukan isi `Message`.
 
 ---
 
-#### 2. `CategoryIds` bisa `null` → `NullReferenceException` → HTTP 500
+#### 2. `CategoryIds` bisa `null` → `NullReferenceException` → HTTP 500 — ✅ SUDAH DIPERBAIKI
+
+> **Status: Fixed.** Lihat catatan di akhir item ini untuk ringkasan perbaikannya.
 
 **Issue:**
 `AssignTaskCategoriesRequest.CategoryIds` bertipe `List<int>` (non-nullable) tanpa `[Required]`.
@@ -314,6 +317,14 @@ Jika klien mengirim JSON `{ "categoryIds": null }`, properti menjadi `null` dan
 Tambahkan validasi (misalnya `[Required]` pada `CategoryIds`, atau cek `if (request.CategoryIds is null)`
 lalu lempar `ArgumentException`). Untuk list kosong, tentukan perilakunya dengan sengaja
 (apakah berarti "hapus semua kategori"?).
+
+**Resolution (sudah dikerjakan):**
+- `AssignTaskCategoriesRequest.CategoryIds` kini diberi `[Required]`, sehingga `categoryIds: null`
+  ditolak di level model binding → **HTTP 400** dengan pesan "CategoryIds is required".
+- Ditambah pengaman di `TaskService.AssignTaskCategoriesAsync` (`if (request.CategoryIds is null)
+  throw new ArgumentException("CategoryIds is required")`) sebagai lapisan kedua.
+- Ditambah test: unit test service (`AssignTaskCategoriesAsync_NullCategoryIds_ThrowsArgumentException`)
+  dan integration test HTTP (`AssignTaskCategories_NullCategoryIds_ReturnsBadRequest`).
 
 ---
 
@@ -395,27 +406,34 @@ request yang tidak valid (400), bukan "resource tidak ditemukan" (404).
 **Why it matters:** Semantik HTTP/REST kurang tepat; klien tidak bisa membedakan "input salah" vs "tidak ada".
 **Suggested direction:** Pelajari perbedaan 400 vs 404, lalu kembalikan `BadRequest` untuk id tidak valid.
 
-#### 6. Tidak ada batas maksimum `limit` pada pagination
+#### 6. Tidak ada batas maksimum `limit` pada pagination — ✅ SUDAH DIPERBAIKI
 
 **Issue:** `GET /api/tasks?limit=1000000` akan diterima dan mengambil data sebanyak itu.
 **Location:** `Controllers/TasksController.cs` baris 36–39, `Services/TaskService.cs` baris 68–69.
 **Why it matters:** Bisa memberatkan database dan server (mirip DoS ringan).
 **Suggested direction:** Tambahkan batas atas, misalnya `limit` maksimal 100.
+**Resolution:** Sudah ditambahkan konstanta `MaxPageSize = 100` di `TasksController`;
+`limit > 100` → **HTTP 400** ("Limit must not exceed 100"). Diuji di unit test dan integration test.
 
-#### 7. `page`/`limit` tanpa default value
+#### 7. `page`/`limit` tanpa default value — ✅ SUDAH DIPERBAIKI
 
 **Issue:** Endpoint task list tidak punya default, sehingga request tanpa parameter mengembalikan 400.
 **Location:** `Controllers/TasksController.cs` baris 22–24.
 **Why it matters:** UX API kurang ramah; klien harus selalu mengirim parameter.
 **Suggested direction:** Beri default, misalnya `int page = 1, int limit = 10`.
+**Resolution:** `GetTasks` kini memakai `int page = 1, int limit = 10`; request tanpa parameter
+mengembalikan **HTTP 200** dengan `page = 1`, `limit = 10`. Diuji di unit test dan integration test.
 
-#### 8. Beberapa DTO belum punya atribut validasi
+#### 8. Beberapa DTO belum punya atribut validasi — 🟡 SEBAGIAN DIPERBAIKI
 
 **Issue:** `UpsertUserProfileRequest` (Bio/Location) dan `UpdateTaskCompletionRequest` tidak divalidasi;
 `AssignTaskCategoriesRequest` tidak punya `[Required]`.
 **Location:** `DTOs/UpsertUserProfileRequest.cs`, `DTOs/UpdateTaskCompletionRequest.cs`, `DTOs/AssignTaskCategoriesRequest.cs`.
 **Why it matters:** Input tak terduga bisa lolos ke service.
 **Suggested direction:** Tambahkan DataAnnotations yang sesuai (`[MaxLength]`, `[Required]`).
+**Resolution:** `AssignTaskCategoriesRequest` kini `[Required]`; `UpsertUserProfileRequest` kini punya
+`[MaxLength]` (Bio 500, Location 200). `UpdateTaskCompletionRequest` masih berupa `bool` (tidak butuh
+validasi tambahan), jadi tidak diubah.
 
 #### 9. `int.Parse` pada claim bisa melempar `FormatException` → 500
 
@@ -491,7 +509,7 @@ Jangan dikerjakan dulu; fokus ke fundamental.
 | Entity Framework Core | ✅ Practiced | Migrations (25 file), relasi one-to-many & one-to-one & many-to-many, unique index, `AsNoTracking`, projection `.Select`, `Include`, soft delete | Cukup dalam untuk level latihan |
 | LINQ | ✅ Practiced | `Where`, `GroupBy`, `OrderBy`/`ThenBy`, `Select`, `Count`, `Any`, `Contains` di `TaskService`/`UserService` | Termasuk query yang di-translate ke SQL |
 | DTO | ✅ Practiced | Folder `DTOs/` terpisah dari `Models/`; request & response terpisah | Tidak membocorkan entity ke API |
-| Validation | 🟡 Partially Practiced | DataAnnotations (`[Required]`, `[EmailAddress]`) + validasi manual di service | Belum konsisten: query params, `AssignTaskCategoriesRequest`, `UpsertUserProfileRequest` belum divalidasi |
+| Validation | ✅ Practiced | DataAnnotations (`[Required]`, `[EmailAddress]`, `[MaxLength]`) + validasi manual di service + validasi query parameter (default & batas pagination) | Ditingkatkan di Step 2 |
 | Async/Await | ✅ Practiced | `async Task<...>` di seluruh service & controller, `await SaveChangesAsync`, `CancellationToken` di `TaskService`/`CategoryService` | Belum konsisten di `UserService` |
 | Exception Handling | ✅ Practiced | `IExceptionHandler` global (`ApiExceptionHandler`), custom exception `DuplicateResourceException`, mapping berdasarkan **tipe** exception | Mapping berbasis string pesan sudah dihapus (lihat Step 1) |
 | Logging | ✅ Practiced | `ILogger<T>` di semua service, pesan terstruktur (`"Task {TaskId} created by user {UserId}"`), diuji tidak membocorkan email/password/token | Test `TestLogger` memverifikasi log tidak berisi data sensitif |
@@ -521,8 +539,8 @@ Berdasarkan project, konsep fundamental yang **paling relevan** untuk dipelajari
    Ini cara EF Core untuk menerapkan aturan filter secara otomatis.
 
 4. **Validasi menyeluruh (validation).**
-   Saat ini validasi ada di sebagian DTO dan sebagian manual di service. Perlu konsistensi,
-   termasuk validasi query parameter (mis. batas `limit`). Ini menjadi **NEXT TASK**.
+   Sudah dipraktikkan lewat Step 2 (DataAnnotations lanjutan + validasi query parameter + batas
+   pagination). Langkah lanjutan: konsistenkan validasi untuk semua endpoint baru ke depan.
 
 5. **Transaksi & konsistensi data (EF Core transactions).**
    Operasi multi-langkah (mis. menghapus user + task-nya, atau assign kategori) perlu dipahami
@@ -583,7 +601,10 @@ exception handling dan semantik HTTP sekaligus, dan berdampak ke seluruh API.
 
 ---
 
-### Step 2 — Tambahkan validasi yang hilang pada DTO & query parameter
+### Step 2 — Tambahkan validasi yang hilang pada DTO & query parameter — ✅ SELESAI
+
+> **Status: DONE.** Step ini sudah dikerjakan (lihat Must Fix #2 & Should Improve #6–8).
+> Semua Definition of Done di bawah sudah terpenuhi dan `dotnet test` hijau (133 test).
 
 **Goal**
 Memastikan semua input tervalidasi: `AssignTaskCategoriesRequest`, `UpsertUserProfileRequest`,
@@ -605,10 +626,10 @@ sampai ke service. Ini juga menutup potensi `NullReferenceException` dari `Categ
 `TaskManagement.Api/Services/TaskService.cs`
 
 **Definition of Done**
-- [ ] `{ "categoryIds": null }` → **400**, bukan 500.
-- [ ] `limit` melebihi batas (mis. > 100) ditolak atau dipotong ke batas.
-- [ ] `page`/`limit` punya default (mis. 1 dan 10) bila tidak dikirim.
-- [ ] Test untuk masing-masing kasus.
+- [x] `{ "categoryIds": null }` → **400**, bukan 500.
+- [x] `limit` melebihi batas (> 100) ditolak → **400**.
+- [x] `page`/`limit` punya default (1 dan 10) bila tidak dikirim.
+- [x] Test untuk masing-masing kasus (unit + integration).
 
 **Difficulty:** Easy–Medium
 
@@ -731,97 +752,87 @@ Terakhir, supaya semua perbaikan "terkunci" oleh test. Ini melatih disiplin test
 
 ## 🎯 NEXT TASK
 
-> Catatan: task sebelumnya (perbaikan pemetaan exception / Step 1) **sudah selesai**.
+> Catatan: task sebelumnya (Step 1 — pemetaan exception, dan Step 2 — validasi) **sudah selesai**.
 > Berikut adalah task berikutnya yang paling masuk akal.
 
-# Tambahkan validasi yang hilang pada DTO & query parameter
+# Konsistenkan soft delete dengan EF Core global query filter
 
 ## Objective
 
-Melengkapi validasi input agar data tidak valid tidak sampai ke service, dan agar kesalahan input
-selalu menghasilkan **400 Bad Request** (bukan 500). Fokus pada tiga hal:
-`AssignTaskCategoriesRequest`, `UpsertUserProfileRequest`, dan batas/default pada
-query parameter `page` & `limit` di `GET /api/tasks`.
+Membuat filter "task yang sudah dihapus tidak muncul" berlaku **otomatis** lewat
+EF Core **global query filter** (`HasQueryFilter`) di `AppDbContext`, sehingga setiap query
+tidak perlu lagi memanggil `.WhereActive()` secara manual.
 
 ## Why This Task
 
-- Setelah pemetaan exception rapi (Step 1), langkah natural berikutnya adalah **mencegah** input
-  buruk masuk lebih awal (validasi), bukan hanya bereaksi setelah error.
-- Ada **bug nyata** yang masih terbuka: `POST/PUT /api/tasks/{id}/categories` dengan body
-  `{ "categoryIds": null }` menyebabkan `NullReferenceException` → **500**
-  (`DTOs/AssignTaskCategoriesRequest.cs` + `Services/TaskService.cs` baris 325).
-- `limit` belum punya batas atas, sehingga `?limit=1000000` diterima apa adanya.
-- `page`/`limit` belum punya default, sehingga request tanpa parameter mengembalikan 400 —
-  kurang ramah untuk klien.
+- Model soft delete sudah ada (`TaskItem.IsDeleted` + `DeletedAt`), tetapi penerapannya
+  bergantung pada pemanggilan manual `WhereActive()` di setiap query
+  (`Extensions/TaskQueryExtensions.cs`). Satu query baru yang lupa memanggilnya bisa
+  memunculkan task yang sudah dihapus — bug yang sulit terdeteksi.
+- Bukti risiko sudah ada: `UserService.GetUsersWithoutActiveTasksAsync` menulis ulang
+  kondisi `!task.IsDeleted` secara manual (`Services/UserService.cs` baris 37–39).
+- Ini melatih fitur EF Core yang penting dan relevan langsung dengan struktur project,
+  bukan konsep advanced yang dipaksakan.
 
 ## Files To Study First
 
-1. `TaskManagement.Api/DTOs/CreateTaskRequest.cs` — contoh DTO yang **sudah** pakai `[Required]`
-   (jadikan acuan gaya).
-2. `TaskManagement.Api/DTOs/AssignTaskCategoriesRequest.cs` — DTO yang belum divalidasi.
-3. `TaskManagement.Api/DTOs/UpsertUserProfileRequest.cs` — DTO yang belum divalidasi.
-4. `TaskManagement.Api/Controllers/TasksController.cs` (baris 21–45) — validasi manual `page`/`limit`.
-5. `TaskManagement.Api/Program.cs` (baris 50–57) — bagaimana `InvalidModelStateResponseFactory`
-   mengubah hasil validasi menjadi `ApiResponse`.
-6. `TaskManagement.Api.Tests/Integration/ApiIntegrationTests.cs` — pola menulis test HTTP.
+1. `TaskManagement.Api/Data/AppDbContext.cs` — tempat menambahkan `HasQueryFilter`.
+2. `TaskManagement.Api/Extensions/TaskQueryExtensions.cs` — extension `WhereActive()` yang
+   saat ini dipakai manual.
+3. `TaskManagement.Api/Services/TaskService.cs` — semua query task yang memakai `WhereActive()`.
+4. `TaskManagement.Api/Services/UserService.cs` — query yang menulis ulang `!task.IsDeleted`.
+5. `TaskManagement.Api.Tests/Services/TaskServiceTests.cs` — test soft delete yang sudah ada
+   (jadikan acuan agar tidak ada regresi).
 
 ## Concepts To Understand
 
-- **Model validation** di ASP.NET Core: `[ApiController]` otomatis mengembalikan 400 bila
-  DataAnnotations gagal.
-- **DataAnnotations**: `[Required]`, `[Range]`, `[MaxLength]`.
-- **Model binding** untuk query parameter dan cara memberi **nilai default**.
-- Perbedaan validasi di **DTO** (bentuk data) vs validasi **business rule** di service.
+- **EF Core global query filter** (`modelBuilder.Entity<T>().HasQueryFilter(...)`).
+- Cara **mengabaikan** filter saat memang perlu melihat data terhapus (`IgnoreQueryFilters()`).
+- Konsekuensi: filter berlaku untuk semua query, termasuk yang dipakai `Include`/`Any`.
+- Perbedaan "filter otomatis" vs "filter manual di tiap query".
 
 ## Implementation Direction
 
 Jangan langsung menulis kode lengkap — lakukan bertahap:
 
-1. **Pelajari** bagaimana `[ApiController]` + `InvalidModelStateResponseFactory` (di `Program.cs`)
-   sudah mengubah error validasi menjadi `ApiResponse` 400. Pahami alurnya dari DTO → model state → response.
-2. **Validasi `AssignTaskCategoriesRequest`.** Tentukan perilaku yang benar untuk `null` vs list kosong,
-   lalu tambahkan atribut/penanganan yang sesuai agar `categoryIds: null` → **400**, bukan 500.
-3. **Validasi `UpsertUserProfileRequest`.** Tambahkan aturan yang masuk akal (mis. `[MaxLength]`
-   untuk Bio/Location). Tentukan apakah Bio/Location wajib atau opsional, dan buat konsisten.
-4. **Rapikan query parameter task list.** Beri **default** `page = 1`, `limit = 10`, dan tambahkan
-   **batas atas** `limit` (mis. maksimal 100). Putuskan apakah melampaui batas → 400 atau dipotong.
-5. **Handle** agar pesan error tetap berbentuk `ApiResponse` yang konsisten.
-6. **Test** setiap skenario baru (lihat How To Verify), lalu jalankan `dotnet test`.
+1. **Pelajari** dulu bagaimana `WhereActive()` dipakai di seluruh service (cari pemakaiannya),
+   lalu pahami bahwa itu adalah filter yang sama yang diulang-ulang.
+2. **Tambahkan** global query filter untuk `TaskItem` di `AppDbContext.OnModelCreating`
+   (mis. `HasQueryFilter(task => !task.IsDeleted)`).
+3. **Hapus atau sederhanakan** pemanggilan `.WhereActive()` yang menjadi redundan setelah filter
+   otomatis aktif. Pikirkan apakah `WhereActive()` masih perlu dipertahankan sebagai helper
+   atau dihapus sepenuhnya.
+4. **Handle** kasus yang butuh melihat task terhapus (kalau ada). Jika tidak ada, cukup pastikan
+   tidak ada tempat yang bergantung pada perilaku lama.
+5. **Test** dengan menjalankan semua test lama (khususnya test soft delete) dan tambahkan test
+   yang membuktikan query baru otomatis mengabaikan task terhapus.
 
 ## Expected Behavior
 
 Setelah selesai:
 
-- `PUT /api/tasks/{id}/categories` dengan `{ "categoryIds": null }` → HTTP **400** dengan pesan validasi.
-- `GET /api/tasks` **tanpa** `page`/`limit` → tetap **200** dan memakai default (1 dan 10).
-- `GET /api/tasks?limit=9999` → ditolak (400) atau dipotong ke batas maksimum, sesuai keputusanmu.
-- Body profil yang terlalu panjang (melebihi `MaxLength`) → **400**.
-- Semua test lama tetap hijau.
+- `GET /api/tasks`, `GET /api/tasks/{id}`, dan endpoint admin **tidak menampilkan** task yang
+  sudah di-soft-delete — tanpa perlu `WhereActive()` eksplisit di setiap query.
+- Perilaku API dari sudut pandang klien **tidak berubah** (semua test lama tetap hijau).
+- Tidak ada lagi duplikasi kondisi `!task.IsDeleted` yang tersebar di beberapa tempat.
 
 ## How To Verify
 
-Jalankan API (`dotnet run --project TaskManagement.Api --launch-profile http`), login untuk
-mendapat token, lalu uji dengan Bruno/`curl`:
+Jalankan `dotnet test TaskManagement.slnx` — semua test lama harus tetap hijau.
+Untuk verifikasi manual:
 
-1. **CategoryIds null:**
-   - Buat task dulu, lalu kirim `PUT /api/tasks/{id}/categories` dengan `{ "categoryIds": null }`.
-   - Harapkan: **HTTP 400** (sebelumnya 500).
+1. **Soft delete tetap bekerja:**
+   - Login sebagai user, buat task, lalu `DELETE /api/tasks/{id}`.
+   - `GET /api/tasks/{id}` → **404**; task tidak muncul di `GET /api/tasks`.
 
-2. **Default pagination:**
-   - Kirim `GET /api/tasks` tanpa parameter.
-   - Harapkan: **HTTP 200** dengan `page = 1`, `limit = 10`.
+2. **Query lintas-user (admin) tetap bersih:**
+   - Sebagai admin, `GET /api/tasks/admin/all` → task yang sudah dihapus tidak muncul.
 
-3. **Batas limit:**
-   - Kirim `GET /api/tasks?page=1&limit=9999`.
-   - Harapkan: sesuai keputusanmu (400 atau dipotong) — pastikan konsisten.
-
-4. **Validasi profil:**
-   - Kirim `PUT /api/users/{id}/profile` dengan Bio yang melebihi batas.
-   - Harapkan: **HTTP 400**.
-
-5. **Automated test:**
-   - Tambahkan test untuk tiap skenario di atas, lalu `dotnet test TaskManagement.slnx`.
-   - Semua test harus hijau.
+3. **Automated test:**
+   - Tambahkan test yang membuktikan query tanpa `WhereActive()` tetap mengecualikan task
+     terhapus (mis. panggil langsung `_dbContext.Tasks.ToListAsync()` lalu pastikan task
+     terhapus tidak ikut).
+   - `dotnet test` harus hijau.
 
 ---
 
@@ -834,9 +845,9 @@ PostgreSQL + EF Core (25 migration), JWT authentication **plus refresh token rot
 authorization, soft delete task, relasi many-to-many (task↔category), profil user one-to-one,
 demo seeding, health check, OpenAPI, CORS per-environment, CI GitHub Actions, serta **test unit dan
 integration yang luas**. Arsitekturnya rapi: **Controller → Service → DbContext → PostgreSQL**, tanpa
-over-engineering. Tidak ditemukan TODO/FIXME. Bug nyata pertama (kategori duplikat → 500) **sudah
-diperbaiki**; beberapa area lain masih perlu dirapikan (validasi, soft delete, konsistensi async).
-Test suite saat ini **126 test hijau**.
+over-engineering. Tidak ditemukan TODO/FIXME. Dua area sudah dibereskan: bug kategori duplikat → 500
+(Step 1) dan validasi yang hilang (Step 2). Beberapa area lain masih perlu dirapikan
+(soft delete, kebijakan hapus user, konsistensi async). Test suite saat ini **133 test hijau**.
 
 ### What I Have Practiced
 
@@ -846,30 +857,28 @@ health checks, OpenAPI), REST API, EF Core (migrations, relasi, index, projectio
 LINQ, DTO terpisah dari entity, async/await, logging terstruktur, configuration per-environment,
 authentication (JWT + refresh token), authorization (policy & role), unit testing (xUnit + Moq),
 dan integration testing (WebApplicationFactory + PostgreSQL nyata).
-Selain itu, baru dipraktikkan: **custom exception + pemetaan exception berbasis tipe** di global
-exception handler (Step 1).
+Selain itu, baru dipraktikkan: **custom exception + pemetaan exception berbasis tipe** (Step 1),
+serta **validasi DataAnnotations lanjutan & validasi query parameter** termasuk batas atas pagination (Step 2).
 
 ### Biggest Gaps
 
 1. **Semantik HTTP/REST** — id tidak valid masih mengembalikan 404 (seharusnya 400).
-2. **Validasi yang belum konsisten** — sebagian DTO & query parameter belum divalidasi
-   (berpotensi `NullReferenceException`, mis. `categoryIds: null`).
-3. **Soft delete manual** — belum memakai EF Core global query filter, rawan lupa di query baru.
-4. **Kebijakan hapus user** — hard delete dengan cascade ke task, tidak konsisten dengan soft delete task.
-5. **Konsistensi async** — `UserService` belum menerima `CancellationToken` seperti service lain.
+2. **Soft delete manual** — belum memakai EF Core global query filter, rawan lupa di query baru.
+3. **Kebijakan hapus user** — hard delete dengan cascade ke task, tidak konsisten dengan soft delete task.
+4. **Konsistensi async** — `UserService` belum menerima `CancellationToken` seperti service lain.
+5. **Duplikasi password hashing** — `PasswordHasher<User>` dibuat manual (`new`) di beberapa tempat.
 
 ### Immediate Priority
 
-Menambahkan **validasi yang hilang** pada DTO dan query parameter, khususnya menutup bug
-`categoryIds: null` → 500, serta memberi default & batas atas pada pagination `GET /api/tasks`.
+Menerapkan **EF Core global query filter** untuk soft delete, agar aturan "task terhapus tidak muncul"
+berlaku otomatis dan tidak lagi bergantung pada pemanggilan `WhereActive()` manual di setiap query.
 
 ### Next Task
 
-**Tambahkan validasi yang hilang pada DTO & query parameter** (lihat bagian 🎯 NEXT TASK di atas):
-validasi `AssignTaskCategoriesRequest` & `UpsertUserProfileRequest`, serta default/batas `page` & `limit`.
+**Konsistenkan soft delete dengan EF Core global query filter** (lihat bagian 🎯 NEXT TASK di atas).
 
 ### After That
 
-Setelah NEXT TASK selesai, lanjutkan ke **Step 3: konsistenkan soft delete dengan EF Core global
-query filter**, lalu **Step 4** (kebijakan hapus user & cascade), **Step 5** (rapikan
-`CancellationToken` + duplikasi password hashing), dan tutup dengan **Step 6** (regression test).
+Setelah NEXT TASK selesai, lanjutkan ke **Step 4** (kebijakan hapus user & cascade),
+**Step 5** (rapikan `CancellationToken` + duplikasi password hashing), dan tutup dengan
+**Step 6** (regression test).

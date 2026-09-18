@@ -322,6 +322,11 @@ public class TaskService : ITaskService
             return null;
         }
 
+        if (request.CategoryIds is null)
+        {
+            throw new ArgumentException("CategoryIds is required");
+        }
+
         var categoryIds = request.CategoryIds.Distinct().ToList();
         var existingCategoryIds = await _dbContext.Categories
             .Where(category => categoryIds.Contains(category.Id))

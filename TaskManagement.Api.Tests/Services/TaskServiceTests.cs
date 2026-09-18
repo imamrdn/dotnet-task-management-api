@@ -270,6 +270,17 @@ public class TaskServiceTests
     }
 
     [Fact]
+    public async Task AssignTaskCategoriesAsync_NullCategoryIds_ThrowsArgumentException()
+    {
+        await using var context = TestDbContextFactory.Create();
+        context.Tasks.Add(new TaskItem { Id = 1, UserId = 1, Title = "Task" });
+        await context.SaveChangesAsync();
+
+        await Assert.ThrowsAsync<ArgumentException>(() => CreateService(context)
+            .AssignTaskCategoriesAsync(1, 1, new AssignTaskCategoriesRequest(null!)));
+    }
+
+    [Fact]
     public async Task DeleteTaskAsync_DeletesOwnedTaskOnly()
     {
         await using var context = TestDbContextFactory.Create();

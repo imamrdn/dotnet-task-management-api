@@ -11,6 +11,8 @@ namespace TaskManagement.Api.Controllers;
 [Route("api/tasks")]
 public class TasksController : ControllerBase
 {
+    private const int MaxPageSize = 100;
+
     private readonly ITaskService _taskService;
 
     public TasksController(ITaskService taskService)
@@ -20,12 +22,12 @@ public class TasksController : ControllerBase
 
     [HttpGet]
     public async Task<IActionResult> GetTasks(
-        int page,
-        int limit,
-        string? search,
-        bool? isCompleted,
-        string? sortBy,
-        string? sortDirection,
+        int page = 1,
+        int limit = 10,
+        string? search = null,
+        bool? isCompleted = null,
+        string? sortBy = null,
+        string? sortDirection = null,
         CancellationToken cancellationToken = default)
     {
         if (page <= 0)
@@ -36,6 +38,11 @@ public class TasksController : ControllerBase
         if (limit <= 0)
         {
             return BadRequest(ApiResponse<object>.Error("Limit must be greater than 0"));
+        }
+
+        if (limit > MaxPageSize)
+        {
+            return BadRequest(ApiResponse<object>.Error($"Limit must not exceed {MaxPageSize}"));
         }
 
         var userId = GetUserIdFromClaims();

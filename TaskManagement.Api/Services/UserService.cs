@@ -10,15 +10,17 @@ namespace TaskManagement.Api.Services;
 public class UserService : IUserService
 {
     private readonly AppDbContext _dbContext;
+    private readonly IPasswordHasher<User> _passwordHasher;
     private readonly ILogger<UserService> _logger;
 
-    public UserService(AppDbContext dbContext, ILogger<UserService> logger)
+    public UserService(AppDbContext dbContext, IPasswordHasher<User> passwordHasher, ILogger<UserService> logger)
     {
         _dbContext = dbContext;
+        _passwordHasher = passwordHasher;
         _logger = logger;
     }
 
-    public async Task<List<UserResponse>> GetUsersAsync()
+    public async Task<List<UserResponse>> GetUsersAsync(CancellationToken cancellationToken = default)
     {
         return await _dbContext.Users
             .AsNoTracking()
@@ -28,10 +30,10 @@ public class UserService : IUserService
                 user.Name,
                 user.Email
             ))
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
     }
 
-    public async Task<List<UserResponse>> GetUsersWithoutActiveTasksAsync()
+    public async Task<List<UserResponse>> GetUsersWithoutActiveTasksAsync(CancellationToken cancellationToken = default)
     {
         return await _dbContext.Users
             .AsNoTracking()
@@ -42,12 +44,12 @@ public class UserService : IUserService
                 user.Name,
                 user.Email
             ))
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
     }
 
-    public async Task<UserResponse?> GetUserByIdAsync(int id)
+    public async Task<UserResponse?> GetUserByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        var user = await _dbContext.Users.FindAsync(id);
+        var user = await _dbContext.Users.FindAsync([id], cancellationToken);
         if (user is null)
         {
             return null;
@@ -56,7 +58,7 @@ public class UserService : IUserService
         return new UserResponse(user.Id, user.Name, user.Email);
     }
 
-    public async Task<UserProfileResponse?> GetUserProfileAsync(int userId)
+    public async Task<UserProfileResponse?> GetUserProfileAsync(int userId, CancellationToken cancellationToken = default)
     {
         return await _dbContext.UserProfiles
             .AsNoTracking()
@@ -67,21 +69,22 @@ public class UserService : IUserService
                 profile.Bio,
                 profile.Location
             ))
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
     public async Task<UserProfileResponse?> UpsertUserProfileAsync(
         int userId,
-        UpsertUserProfileRequest request)
+        UpsertUserProfileRequest request,
+        CancellationToken cancellationToken = default)
     {
-        var userExists = await _dbContext.Users.AnyAsync(user => user.Id == userId);
+        var userExists = await _dbContext.Users.AnyAsync(user => user.Id == userId, cancellationToken);
         if (!userExists)
         {
             return null;
         }
 
         var profile = await _dbContext.UserProfiles
-            .FirstOrDefaultAsync(profile => profile.UserId == userId);
+            .FirstOrDefaultAsync(profile => profile.UserId == userId, cancellationToken);
 
         if (profile is null)
         {
@@ -101,7 +104,7 @@ public class UserService : IUserService
             profile.UpdatedAt = DateTime.UtcNow;
         }
 
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Profile for user {UserId} upserted", userId);
 
         return new UserProfileResponse(
@@ -112,7 +115,7 @@ public class UserService : IUserService
         );
     }
 
-    public async Task<UserResponse> CreateUserAsync(CreateUserRequest request)
+    public async Task<UserResponse> CreateUserAsync(CreateUserRequest request, CancellationToken cancellationToken = default)
     {
         ValidateUserRequest(request.Name, request.Email);
 
@@ -121,7 +124,7 @@ public class UserService : IUserService
             throw new ArgumentException("Password is required");
         }
 
-        var emailExists = await _dbContext.Users.AnyAsync(user => user.Email == request.Email);
+        var emailExists = await _dbContext.Users.AnyAsync(user => user.Email == request.Email, cancellationToken);
         if (emailExists)
         {
             throw new DuplicateResourceException("Email is already registered");
@@ -133,28 +136,27 @@ public class UserService : IUserService
             Email = request.Email
         };
 
-        var passwordHasher = new PasswordHasher<User>();
-        user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
+        user.PasswordHash = _passwordHasher.HashPassword(user, request.Password);
 
         _dbContext.Users.Add(user);
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("User {UserId} created", user.Id);
 
         return new UserResponse(user.Id, user.Name, user.Email);
     }
 
-    public async Task<UserResponse?> UpdateUserAsync(int id, UpdateUserRequest request)
+    public async Task<UserResponse?> UpdateUserAsync(int id, UpdateUserRequest request, CancellationToken cancellationToken = default)
     {
         ValidateUserRequest(request.Name, request.Email);
 
-        var user = await _dbContext.Users.FindAsync(id);
+        var user = await _dbContext.Users.FindAsync([id], cancellationToken);
         if (user is null)
         {
             return null;
         }
 
         var emailExists = await _dbContext.Users
-            .AnyAsync(existingUser => existingUser.Email == request.Email && existingUser.Id != id);
+            .AnyAsync(existingUser => existingUser.Email == request.Email && existingUser.Id != id, cancellationToken);
 
         if (emailExists)
         {
@@ -166,19 +168,18 @@ public class UserService : IUserService
 
         if (!string.IsNullOrWhiteSpace(request.Password))
         {
-            var passwordHasher = new PasswordHasher<User>();
-            user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
+            user.PasswordHash = _passwordHasher.HashPassword(user, request.Password);
         }
 
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("User {UserId} updated", user.Id);
 
         return new UserResponse(user.Id, user.Name, user.Email);
     }
 
-    public async Task<bool> DeleteUserAsync(int id)
+    public async Task<bool> DeleteUserAsync(int id, CancellationToken cancellationToken = default)
     {
-        var user = await _dbContext.Users.FindAsync(id);
+        var user = await _dbContext.Users.FindAsync([id], cancellationToken);
         if (user is null)
         {
             return false;
@@ -190,14 +191,14 @@ public class UserService : IUserService
         // reject them at the database level otherwise).
         var hasTasks = await _dbContext.Tasks
             .IgnoreQueryFilters()
-            .AnyAsync(task => task.UserId == id);
+            .AnyAsync(task => task.UserId == id, cancellationToken);
         if (hasTasks)
         {
             throw new ArgumentException("User cannot be deleted because the user has tasks");
         }
 
         _dbContext.Users.Remove(user);
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("User {UserId} deleted", id);
 
         return true;

@@ -195,7 +195,7 @@ public class AuthServiceTests
     {
         await using var context = TestDbContextFactory.Create();
         var logger = new TestLogger<AuthService>();
-        var service = new AuthService(context, Configuration, logger);
+        var service = new AuthService(context, Configuration, new PasswordHasher<User>(), logger);
 
         await service.RegisterAsync(new RegisterRequest("User", "user@mail.com", "secret123"));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
@@ -218,5 +218,5 @@ public class AuthServiceTests
     }
 
     private static AuthService CreateService(AppDbContext context, IConfiguration? configuration = null) =>
-        new(context, configuration ?? Configuration, NullLogger<AuthService>.Instance);
+        new(context, configuration ?? Configuration, new PasswordHasher<User>(), NullLogger<AuthService>.Instance);
 }

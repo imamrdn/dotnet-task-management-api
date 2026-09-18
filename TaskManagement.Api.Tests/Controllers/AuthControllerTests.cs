@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using TaskManagement.Api.Controllers;
 using TaskManagement.Api.DTOs;
 using TaskManagement.Api.Errors;
+using TaskManagement.Api.Models;
 using TaskManagement.Api.Services;
 
 namespace TaskManagement.Api.Tests.Controllers;
@@ -66,6 +68,6 @@ public class AuthControllerTests
             .Build();
 
         return new AuthController(new AuthService(
-            context, configuration, NullLogger<AuthService>.Instance));
+            context, configuration, new PasswordHasher<User>(), NullLogger<AuthService>.Instance));
     }
 }

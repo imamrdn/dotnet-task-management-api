@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Identity;
 using TaskManagement.Api.Data.Seeders;
+using TaskManagement.Api.Models;
 
 namespace TaskManagement.Api.Tests.Data;
 
@@ -8,7 +10,7 @@ public class SeederTests
     public async Task UserSeeder_CreatesExpectedUsersAndIsIdempotent()
     {
         await using var context = TestDbContextFactory.Create();
-        var seeder = new UserSeeder(context);
+        var seeder = new UserSeeder(context, new PasswordHasher<User>());
 
         var admin = await seeder.SeedAdminAsync();
         var user = await seeder.SeedRegularUserAsync();
@@ -24,7 +26,7 @@ public class SeederTests
     public async Task TaskSeeder_CreatesTasksForEachOwnerAndIsIdempotent()
     {
         await using var context = TestDbContextFactory.Create();
-        var userSeeder = new UserSeeder(context);
+        var userSeeder = new UserSeeder(context, new PasswordHasher<User>());
         var admin = await userSeeder.SeedAdminAsync();
         var user = await userSeeder.SeedRegularUserAsync();
         var categories = await new CategorySeeder(context).SeedAsync();
@@ -47,7 +49,7 @@ public class SeederTests
         await using var context = TestDbContextFactory.Create();
         var seeder = new DatabaseSeeder(
             context,
-            new UserSeeder(context),
+            new UserSeeder(context, new PasswordHasher<User>()),
             new CategorySeeder(context),
             new TaskSeeder(context));
 

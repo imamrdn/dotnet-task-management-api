@@ -7,10 +7,12 @@ namespace TaskManagement.Api.Data.Seeders;
 public class UserSeeder
 {
     private readonly AppDbContext _dbContext;
+    private readonly IPasswordHasher<User> _passwordHasher;
 
-    public UserSeeder(AppDbContext dbContext)
+    public UserSeeder(AppDbContext dbContext, IPasswordHasher<User> passwordHasher)
     {
         _dbContext = dbContext;
+        _passwordHasher = passwordHasher;
     }
 
     public async Task<User> SeedAdminAsync()
@@ -41,8 +43,6 @@ public class UserSeeder
             return existingUser;
         }
 
-        var passwordHasher = new PasswordHasher<User>();
-
         var user = new User
         {
             Name = name,
@@ -50,7 +50,7 @@ public class UserSeeder
             Role = role
         };
 
-        user.PasswordHash = passwordHasher.HashPassword(user, "secret123");
+        user.PasswordHash = _passwordHasher.HashPassword(user, "secret123");
 
         _dbContext.Users.Add(user);
         await _dbContext.SaveChangesAsync();

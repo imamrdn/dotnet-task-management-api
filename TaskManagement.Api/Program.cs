@@ -4,6 +4,7 @@ using TaskManagement.Api.Data.Seeders;
 using TaskManagement.Api.Services;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -11,6 +12,7 @@ using Microsoft.OpenApi;
 using TaskManagement.Api.DTOs;
 using TaskManagement.Api.Errors;
 using TaskManagement.Api.Health;
+using TaskManagement.Api.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 const string CorsPolicyName = "AllowedOrigins";
@@ -102,6 +104,7 @@ builder.Services.AddHealthChecks()
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<DatabaseSeeder>();
 builder.Services.AddScoped<UserSeeder>();

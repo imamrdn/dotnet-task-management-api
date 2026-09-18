@@ -234,7 +234,7 @@ public class UserServiceTests
     {
         await using var context = TestDbContextFactory.Create();
         var logger = new TestLogger<UserService>();
-        var service = new UserService(context, logger);
+        var service = new UserService(context, new PasswordHasher<User>(), logger);
 
         var created = await service.CreateUserAsync(
             new CreateUserRequest("User", "user@mail.com", "secret123"));
@@ -253,5 +253,5 @@ public class UserServiceTests
     }
 
     private static UserService CreateService(AppDbContext context) =>
-        new(context, NullLogger<UserService>.Instance);
+        new(context, new PasswordHasher<User>(), NullLogger<UserService>.Instance);
 }

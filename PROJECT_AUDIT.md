@@ -404,7 +404,7 @@ pada `TaskCategory` (`HasQueryFilter(tc => !tc.TaskItem.IsDeleted)`) sesuai reko
 relasi required. Semua pemanggilan `.WhereActive()` manual dihapus, dan kondisi `!task.IsDeleted`
 manual di `UserService` disederhanakan. Diuji di `Tests/Data/SoftDeleteQueryFilterTests.cs`.
 
-#### 3. Duplikasi logika hashing password
+#### 3. Duplikasi logika hashing password — ✅ SUDAH DIPERBAIKI
 
 **Issue:** Pembuatan `PasswordHasher<User>` dan pemanggilan `HashPassword` diulang di
 `AuthService`, `UserService`, dan `UserSeeder`.
@@ -412,6 +412,9 @@ manual di `UserService` disederhanakan. Diuji di `Tests/Data/SoftDeleteQueryFilt
 `Data/Seeders/UserSeeder.cs`.
 **Why it matters:** Kalau nanti mau ganti algoritma hashing, harus diubah di banyak tempat.
 **Suggested direction:** Daftarkan `IPasswordHasher<User>` lewat DI dan inject ke service (bukan `new` manual).
+**Resolution:** Sudah didaftarkan `AddScoped<IPasswordHasher<User>, PasswordHasher<User>>()` di
+`Program.cs`; `AuthService`, `UserService`, dan `UserSeeder` kini menerima via constructor injection.
+Tidak ada lagi `new PasswordHasher` di project API (lihat Step 5).
 
 #### 4. `AuthService` tidak punya interface, service lain punya
 
@@ -464,13 +467,16 @@ validasi tambahan), jadi tidak diubah.
 **Why it matters:** Jika claim `NameIdentifier` tidak valid, muncul 500 (harusnya 401).
 **Suggested direction:** Gunakan `int.TryParse` dan lempar `UnauthorizedAccessException` jika gagal.
 
-#### 10. `CancellationToken` tidak konsisten
+#### 10. `CancellationToken` tidak konsisten — ✅ SUDAH DIPERBAIKI
 
 **Issue:** `TaskService` dan `CategoryService` menerima `CancellationToken`, tapi `IUserService`/`UserService`
 tidak menerimanya sama sekali.
 **Location:** `Services/IUserService.cs`, `Services/UserService.cs`.
 **Why it matters:** Konsistensi dan efisiensi; pembatalan request tidak diteruskan ke query user.
 **Suggested direction:** Tambahkan `CancellationToken` di method `UserService` dan teruskan ke `...Async`.
+**Resolution:** Semua method `IUserService`/`UserService` kini menerima
+`CancellationToken cancellationToken = default` dan meneruskannya ke EF Core; `UsersController`
+juga menerima dan meneruskan token (lihat Step 5).
 
 #### 11. Duplikasi validasi manual yang berulang
 
@@ -569,7 +575,8 @@ Berdasarkan project, konsep fundamental yang **paling relevan** untuk dipelajari
    `DatabaseSeeder.RefreshAsync` tetap menjadi contoh transaction yang baik untuk dipelajari.
 
 6. **Async & CancellationToken secara konsisten.**
-   `UserService` belum menerima `CancellationToken`, berbeda dengan service lain.
+   Sudah dipraktikkan lewat Step 5 (semua method `UserService` menerima & meneruskan token;
+   `UsersController` meneruskan token dari action).
 
 7. **Logging lebih lanjut (log scopes / correlation).**
    Logging sudah bagus; langkah berikutnya bisa mempelajari log scope dan level.
@@ -735,7 +742,10 @@ menutup risiko kehilangan data dengan perubahan minimal.
 
 ---
 
-### Step 5 — Konsistenkan `CancellationToken` & rapikan duplikasi password hashing
+### Step 5 — Konsistenkan `CancellationToken` & rapikan duplikasi password hashing — ✅ SELESAI
+
+> **Status: DONE.** Step ini sudah dikerjakan. Semua Definition of Done di bawah sudah terpenuhi
+> dan `dotnet test` hijau (140 test). Perilaku API tidak berubah (refactor murni).
 
 **Goal**
 Menambah `CancellationToken` di `UserService` dan menghapus duplikasi `PasswordHasher` dengan
@@ -756,15 +766,20 @@ Ini perapian setelah alur utama stabil. Keduanya peningkatan kualitas yang teruk
 `TaskManagement.Api/Services/AuthService.cs`
 
 **Definition of Done**
-- [ ] Semua method `UserService` menerima & meneruskan `CancellationToken`.
-- [ ] `PasswordHasher` di-inject lewat DI, bukan `new` berulang.
-- [ ] Semua test tetap hijau.
+- [x] Semua method `UserService` menerima & meneruskan `CancellationToken`.
+- [x] `PasswordHasher` di-inject lewat DI, bukan `new` berulang.
+- [x] Semua test tetap hijau.
 
 **Difficulty:** Easy
 
 ---
 
-### Step 6 — Tambahkan test untuk bug yang baru diperbaiki
+### Step 6 — Tambahkan test untuk bug yang baru diperbaiki — ✅ SEBAGIAN BESAR SELESAI
+
+> **Status: sebagian besar DONE.** Berbeda dari rencana awal, regression test sudah ditambahkan
+> **di setiap step** (bukan di akhir): Step 1 (handler unit test + integration kategori duplikat),
+> Step 2 (unit + integration validasi), Step 3 (`SoftDeleteQueryFilterTests`), Step 4 (unit +
+> integration hapus user). Test suite kini **140 test hijau**.
 
 **Goal**
 Memperkuat test suite agar bug yang diperbaiki di Step 1–2 tidak muncul lagi (regression test).
@@ -783,9 +798,10 @@ Terakhir, supaya semua perbaikan "terkunci" oleh test. Ini melatih disiplin test
 `TaskManagement.Api.Tests/Controllers/CategoriesControllerTests.cs`
 
 **Definition of Done**
-- [ ] Ada test untuk kategori duplikat → 400.
-- [ ] Ada test untuk `categoryIds: null` → 400.
-- [ ] `dotnet test` hijau, coverage kategori/error terpantau.
+- [x] Ada test untuk kategori duplikat → 400 (Step 1).
+- [x] Ada test untuk `categoryIds: null` → 400 (Step 2).
+- [ ] `dotnet test` hijau, coverage kategori/error terpantau (verifikasi coverage menyeluruh —
+  lihat NEXT TASK bila ingin dilanjutkan ke perapian semantik HTTP).
 
 **Difficulty:** Easy–Medium
 
@@ -793,93 +809,78 @@ Terakhir, supaya semua perbaikan "terkunci" oleh test. Ini melatih disiplin test
 
 ## 🎯 NEXT TASK
 
-> Catatan: Step 1 (pemetaan exception), Step 2 (validasi), Step 3 (global query filter),
-> dan Step 4 (kebijakan hapus user) **sudah selesai**. Berikut task berikutnya.
+> Catatan: Step 1–5 **sudah selesai**. Regression test (Step 6) sebagian besar sudah dikerjakan
+> di setiap step. Berikut task lanjutan yang paling masuk akal dari sisa temuan audit.
 
-# Konsistenkan `CancellationToken` & rapikan duplikasi password hashing
+# Perbaiki semantik status code untuk id tidak valid (404 → 400)
 
 ## Objective
 
-Dua perapian kecil yang saling terkait di layer service:
-
-1. Menambah `CancellationToken` di semua method `IUserService`/`UserService` dan meneruskannya
-   ke semua pemanggilan EF Core async — menyamakan dengan `TaskService`/`CategoryService`
-   yang sudah menerimanya.
-2. Menghapus duplikasi `new PasswordHasher<User>()` di `AuthService`, `UserService`, dan
-   `UserSeeder` dengan mendaftarkan `IPasswordHasher<User>` di DI container dan meng-inject-nya.
+Mengubah semua validasi `if (id <= 0) return NotFound(...)` di `TasksController`,
+`UsersController`, dan `CategoriesController` menjadi `return BadRequest(...)`, karena
+id nol/negatif adalah **request tidak valid** (400), bukan "resource tidak ditemukan" (404).
+Sekalian perbaiki `GetUserIdFromClaims` yang memakai `int.Parse` tanpa pengaman
+(claim rusak → `FormatException` → 500, seharusnya 401).
 
 ## Why This Task
 
-- Setelah alur utama stabil (Step 1–4), ini saat yang tepat untuk perapian berkualitas:
-  terukur, tidak berisiko besar, dan melatih dua fundamental (async + DI) sekaligus.
-- `CancellationToken` yang tidak diteruskan berarti pembatalan request klien tidak sampai
-  ke query database user — inkonsistensi yang mudah diperbaiki sekarang.
-- `new PasswordHasher<User>()` yang tersebar di 3+ tempat berarti penggantian algoritma
-  hashing di masa depan harus diubah di banyak tempat (pelanggaran DRY).
+- Ini sisa gap terbesar di "Biggest Gaps": **semantik HTTP/REST**. Setelah Step 1–5,
+  status code sudah benar untuk duplikat/validasi/delete, tetapi belum untuk id tidak valid.
+- Perubahan kecil, terisolasi di controller, dan mudah diuji — latihan yang pas untuk
+  memahami perbedaan 400 vs 404 secara konkret.
+- Sekalian menutup potensi 500 dari `int.Parse` claim, pola yang sama dengan bug
+  `categoryIds: null` di Step 2 (input tak terduga → 500).
 
 ## Files To Study First
 
-1. `TaskManagement.Api/Services/ITaskService.cs` + `TaskService.cs` — contoh pola
-   `CancellationToken` yang sudah benar (jadikan acuan).
-2. `TaskManagement.Api/Services/IUserService.cs` + `UserService.cs` — yang akan diubah.
-3. `TaskManagement.Api/Controllers/UsersController.cs` — pemanggil `IUserService`
-   (perlu meneruskan token; controller punya `HttpContext.RequestAborted` bila mau eksplisit,
-   atau biarkan default).
-4. `TaskManagement.Api/Program.cs` — tempat mendaftarkan `IPasswordHasher<User>`.
-5. `TaskManagement.Api/Services/AuthService.cs` + `Data/Seeders/UserSeeder.cs` — pemakai
-   `new PasswordHasher<User>()` yang akan diganti inject.
-6. Test yang memanggil `UserService` langsung (`UserServiceTests`, `UsersControllerTests`)
-   — perlu dicek apakah perlu penyesuaian tanda tangan.
+1. `TaskManagement.Api/Controllers/TasksController.cs` — pola `if (id <= 0)` + `GetUserIdFromClaims`.
+2. `TaskManagement.Api/Controllers/UsersController.cs` — pola yang sama.
+3. `TaskManagement.Api/Controllers/CategoriesController.cs` — pola yang sama.
+4. `TaskManagement.Api/Errors/ApiExceptionHandler.cs` — pengecualian: `UnauthorizedAccessException`
+   sudah dipetakan ke 401, jadi lempar itu dari `GetUserIdFromClaims`.
+5. `TaskManagement.Api.Tests/Controllers/TasksControllerTests.cs` (dan Users/Categories) —
+   test yang mengassert `NotFoundObjectResult` untuk id 0 perlu diperbarui ke `BadRequestObjectResult`.
 
 ## Concepts To Understand
 
-- **`CancellationToken` di ASP.NET Core**: bagaimana pembatalan request mengalir dari
-  controller → service → EF Core, dan kenapa `...Async(..., cancellationToken)` penting.
-- **Mendaftarkan service framework di DI**: `builder.Services.AddScoped<IPasswordHasher<User>,
-  PasswordHasher<User>>()` dan constructor injection.
-- Prinsip **DRY** (Don't Repeat Yourself) untuk logika infrastruktur seperti hashing.
+- **Semantik HTTP status code**: 400 = "request-mu salah", 404 = "request-mu valid tapi
+  datanya tidak ada". Klien (dan dokumentasi API) mengandalkan perbedaan ini.
+- **`int.TryParse` vs `int.Parse`**: kenapa parsing input eksternal (termasuk claim JWT)
+  harus memakai versi yang aman.
+- Bagaimana `[ApiController]` + route constraint `{id:int}` berinteraksi: constraint hanya
+  memastikan format integer, bukan nilai positif — jadi cek `<= 0` tetap diperlukan.
 
 ## Implementation Direction
 
-Jangan langsung menulis kode lengkap — lakukan bertahap:
-
-1. **Pelajari** bagaimana `TaskService` menerima `CancellationToken cancellationToken = default`
-   dan meneruskannya ke `CountAsync`/`ToListAsync`/`SaveChangesAsync`. Perhatikan bahwa parameter
-   opsional (`= default`) membuat pemanggil lama tetap kompilasi.
-2. **Tambahkan** `CancellationToken cancellationToken = default` ke semua method
-   `IUserService`/`UserService`, teruskan ke setiap `...Async`, dan teruskan dari
-   `UsersController` (cukup teruskan parameter `cancellationToken` yang disediakan framework
-   di action, atau biarkan default).
-3. **Daftarkan** `IPasswordHasher<User>` di `Program.cs`, lalu ganti semua
-   `new PasswordHasher<User>()` dengan field yang di-inject via constructor di
-   `AuthService`, `UserService`, dan `UserSeeder` (jangan lupa daftarkan juga bila seeder
-   di-resolve via DI — cek `Program.cs` baris seeder).
-4. **Handle** test yang terdampak: pemanggil dengan positional argument tetap kompilasi
-   karena parameter baru opsional; yang memakai Moq `Setup` mungkin perlu
-   `It.IsAny<CancellationToken>()`.
-5. **Test**: jalankan `dotnet test` — semua harus hijau tanpa perubahan perilaku API.
+1. **Pelajari** semua kemunculan `if (id <= 0)` di ketiga controller (cari dengan grep)
+   dan pahami responsnya saat ini (404 + pesan "not found").
+2. **Ubah** masing-masing menjadi `BadRequest` dengan pesan yang menjelaskan inputnya salah
+   (mis. "Invalid task id" — tentukan pesan yang konsisten antar controller).
+3. **Perbaiki** `GetUserIdFromClaims`: ganti `int.Parse` dengan `int.TryParse`; bila gagal
+   (claim hilang atau bukan angka), lempar `UnauthorizedAccessException` agar menjadi 401.
+4. **Handle** test lama: perbarui assertion `NotFoundObjectResult` → `BadRequestObjectResult`
+   untuk kasus id 0/negatif, dan tambah test untuk claim tidak valid bila memungkinkan.
+5. **Test**: `dotnet test` harus hijau; perilaku untuk id valid tidak berubah.
 
 ## Expected Behavior
 
 Setelah selesai:
 
-- Perilaku API **tidak berubah sama sekali** dari sudut pandang klien (refactor murni).
-- Pembatalan request diteruskan sampai ke query database untuk endpoint `/api/users`.
-- Tidak ada lagi `new PasswordHasher<User>()` di codebase (cek dengan pencarian).
+- `GET /api/tasks/0`, `PUT /api/users/-1`, `DELETE /api/categories/0`, dll. →
+  HTTP **400** (bukan 404).
+- `GET /api/tasks/999999` (id valid tapi tidak ada) → tetap **404**.
+- Token dengan claim user-id rusak → **401** (bukan 500).
 
 ## How To Verify
 
-1. **Pencarian kode:**
-   - Cari `new PasswordHasher` di seluruh `*.cs` → tidak ada lagi hasil di `TaskManagement.Api/`.
-   - Cari method `UserService` tanpa `CancellationToken` → tidak ada lagi.
-
-2. **Automated test:**
+1. **Automated test:**
+   - Perbarui/tambah unit test controller untuk id 0 dan negatif → `BadRequestObjectResult`.
    - `dotnet test TaskManagement.slnx` → semua hijau.
-   - Perilaku login/register (hashing) tetap benar — dibuktikan test `AuthServiceTests`
-     dan `UserServiceTests` yang sudah ada.
 
-3. **Manual (opsional):**
-   - Register + login via Bruno tetap berhasil (membuktikan hashing via DI bekerja).
+2. **Manual via Bruno/curl (login dulu sebagai user/admin):**
+   - `GET /api/tasks/0` → **400**.
+   - `GET /api/tasks/999999` → **404**.
+   - `DELETE /api/users/-5` → **400**.
 
 ---
 
@@ -892,10 +893,10 @@ PostgreSQL + EF Core (26 migration), JWT authentication **plus refresh token rot
 authorization, soft delete task, relasi many-to-many (task↔category), profil user one-to-one,
 demo seeding, health check, OpenAPI, CORS per-environment, CI GitHub Actions, serta **test unit dan
 integration yang luas**. Arsitekturnya rapi: **Controller → Service → DbContext → PostgreSQL**, tanpa
-over-engineering. Tidak ditemukan TODO/FIXME. Empat area sudah dibereskan: bug kategori duplikat → 500
+over-engineering. Tidak ditemukan TODO/FIXME. Lima area sudah dibereskan: bug kategori duplikat → 500
 (Step 1), validasi yang hilang (Step 2), soft delete otomatis via global query filter (Step 3),
-dan kebijakan hapus user yang aman (Step 4). Tersisa perapian kecil (konsistensi async, duplikasi
-password hashing). Test suite saat ini **140 test hijau**.
+kebijakan hapus user yang aman (Step 4), serta konsistensi `CancellationToken` + DI password hashing
+(Step 5). Tersisa perapian semantik HTTP (400 vs 404). Test suite saat ini **140 test hijau**.
 
 ### What I Have Practiced
 
@@ -908,29 +909,30 @@ authorization (policy & role), unit testing (xUnit + Moq), dan integration testi
 (WebApplicationFactory + PostgreSQL nyata).
 Selain itu, baru dipraktikkan: **custom exception + pemetaan exception berbasis tipe** (Step 1),
 **validasi DataAnnotations lanjutan & validasi query parameter** (Step 2),
-**EF Core global query filter untuk soft delete** (Step 3), serta **kebijakan delete yang aman
-dengan Restrict + guard di service + migration FK** (Step 4).
+**EF Core global query filter untuk soft delete** (Step 3), **kebijakan delete yang aman
+dengan Restrict + guard di service + migration FK** (Step 4), serta **mendaftarkan service
+framework (`IPasswordHasher<T>`) di DI + meneruskan `CancellationToken` end-to-end** (Step 5).
 
 ### Biggest Gaps
 
-1. **Semantik HTTP/REST** — id tidak valid masih mengembalikan 404 (seharusnya 400).
-2. **Konsistensi async** — `UserService` belum menerima `CancellationToken` seperti service lain.
-3. **Duplikasi password hashing** — `PasswordHasher<User>` dibuat manual (`new`) di beberapa tempat.
-4. **Keputusan desain lanjutan** — mis. proteksi hapus akun demo/admin (saat ini masih bisa dihapus
-   bila tidak punya task); sengaja di luar cakupan Step 4.
+1. **Semantik HTTP/REST** — id tidak valid masih mengembalikan 404 (seharusnya 400);
+   `int.Parse` claim tanpa pengaman (potensi 500).
+2. **Duplikasi validasi manual** — cek `IsNullOrWhiteSpace` Name/Email/Password tersebar
+   di `AuthService`/`UserService` (bisa disatukan via DataAnnotations/helper).
+3. **Keputusan desain lanjutan** — mis. proteksi hapus akun demo/admin; sengaja di luar cakupan.
 
 ### Immediate Priority
 
-Merapikan **konsistensi `CancellationToken` di `UserService`** dan **menghapus duplikasi
-`PasswordHasher`** lewat DI — dua perapian kecil yang melatih fundamental async + DI
-setelah alur utama stabil.
+Memperbaiki **semantik status code untuk id tidak valid (404 → 400)** sekaligus mengamankan
+`GetUserIdFromClaims` dengan `TryParse` — latihan kecil yang menutup gap HTTP/REST terakhir.
 
 ### Next Task
 
-**Konsistenkan `CancellationToken` & rapikan duplikasi password hashing**
+**Perbaiki semantik status code untuk id tidak valid (404 → 400)**
 (lihat bagian 🎯 NEXT TASK di atas).
 
 ### After That
 
-Setelah NEXT TASK selesai, tutup dengan **Step 6** (regression test & coverage check),
-lalu pertimbangkan perapian semantik HTTP (400 vs 404 untuk id tidak valid) sebagai latihan lanjutan.
+Setelah NEXT TASK selesai, roadmap inti selesai. Latihan lanjutan yang masuk akal:
+rapikan duplikasi validasi manual, jalankan analisis coverage (`coverage.runsettings`),
+atau eksplorasi rate limiting (sudah tercantum sebagai "Next phase" di README).

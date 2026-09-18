@@ -16,12 +16,14 @@ public class AuthService
 {
     private readonly AppDbContext _dbContext;
     private readonly IConfiguration _configuration;
+    private readonly IPasswordHasher<User> _passwordHasher;
     private readonly ILogger<AuthService> _logger;
 
-    public AuthService(AppDbContext dbContext, IConfiguration configuration, ILogger<AuthService> logger)
+    public AuthService(AppDbContext dbContext, IConfiguration configuration, IPasswordHasher<User> passwordHasher, ILogger<AuthService> logger)
     {
         _dbContext = dbContext;
         _configuration = configuration;
+        _passwordHasher = passwordHasher;
         _logger = logger;
     }
 
@@ -56,8 +58,7 @@ public class AuthService
             Role = "User"
         };
 
-        var passwordHasher = new PasswordHasher<User>();
-        user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
+        user.PasswordHash = _passwordHasher.HashPassword(user, request.Password);
 
         _dbContext.Users.Add(user);
         await _dbContext.SaveChangesAsync();
@@ -85,12 +86,11 @@ public class AuthService
             throw new UnauthorizedAccessException("Invalid email or password");
         }
 
-        var passwordHasher = new PasswordHasher<User>();
         PasswordVerificationResult result;
 
         try
         {
-            result = passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
+            result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
         }
         catch (FormatException)
         {

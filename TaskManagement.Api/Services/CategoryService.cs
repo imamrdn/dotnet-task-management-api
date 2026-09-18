@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TaskManagement.Api.Data;
 using TaskManagement.Api.DTOs;
+using TaskManagement.Api.Errors;
 using TaskManagement.Api.Models;
 
 namespace TaskManagement.Api.Services;
@@ -44,7 +45,7 @@ public class CategoryService : ICategoryService
             .AnyAsync(category => category.Name == request.Name, cancellationToken);
         if (nameExists)
         {
-            throw new InvalidOperationException("Category name is already registered");
+            throw new DuplicateResourceException("Category name is already registered");
         }
 
         var category = new Category { Name = request.Name };
@@ -74,7 +75,7 @@ public class CategoryService : ICategoryService
             cancellationToken);
         if (nameExists)
         {
-            throw new InvalidOperationException("Category name is already registered");
+            throw new DuplicateResourceException("Category name is already registered");
         }
 
         category.Name = request.Name;

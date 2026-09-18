@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using TaskManagement.Api.Data;
 using TaskManagement.Api.DTOs;
+using TaskManagement.Api.Errors;
 using TaskManagement.Api.Models;
 
 namespace TaskManagement.Api.Services;
@@ -45,7 +46,7 @@ public class AuthService
 
         if (emailExists)
         {
-            throw new ArgumentException("Email is already registered");
+            throw new DuplicateResourceException("Email is already registered");
         }
 
         var user = new User

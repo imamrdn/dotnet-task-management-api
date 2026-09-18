@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using TaskManagement.Api.Data;
 using TaskManagement.Api.DTOs;
+using TaskManagement.Api.Errors;
 using TaskManagement.Api.Models;
 using TaskManagement.Api.Services;
 
@@ -35,7 +36,7 @@ public class CategoryServiceTests
         Assert.Equal("Backend", Assert.Single(context.Categories).Name);
         await Assert.ThrowsAsync<ArgumentException>(() =>
             service.CreateCategoryAsync(new CreateCategoryRequest("")));
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        await Assert.ThrowsAsync<DuplicateResourceException>(() =>
             service.CreateCategoryAsync(new CreateCategoryRequest("Backend")));
     }
 
@@ -53,7 +54,7 @@ public class CategoryServiceTests
 
         Assert.Equal("API", updated!.Name);
         Assert.Null(await service.UpdateCategoryAsync(99, new UpdateCategoryRequest("Missing")));
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        await Assert.ThrowsAsync<DuplicateResourceException>(() =>
             service.UpdateCategoryAsync(1, new UpdateCategoryRequest("Database")));
     }
 

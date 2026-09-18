@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using TaskManagement.Api.Data;
 using TaskManagement.Api.DTOs;
+using TaskManagement.Api.Errors;
 using TaskManagement.Api.Models;
 using TaskManagement.Api.Services;
 
@@ -136,7 +137,7 @@ public class UserServiceTests
         context.Users.Add(new User { Email = "user@mail.com" });
         await context.SaveChangesAsync();
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => CreateService(context)
+        await Assert.ThrowsAsync<DuplicateResourceException>(() => CreateService(context)
             .CreateUserAsync(new CreateUserRequest("User", "user@mail.com", "secret123")));
     }
 
@@ -181,7 +182,7 @@ public class UserServiceTests
             new User { Id = 2, Email = "second@mail.com" });
         await context.SaveChangesAsync();
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => CreateService(context)
+        await Assert.ThrowsAsync<DuplicateResourceException>(() => CreateService(context)
             .UpdateUserAsync(1, new UpdateUserRequest("First", "second@mail.com", null)));
     }
 

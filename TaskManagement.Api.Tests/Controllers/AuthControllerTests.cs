@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using TaskManagement.Api.Controllers;
 using TaskManagement.Api.DTOs;
+using TaskManagement.Api.Errors;
 using TaskManagement.Api.Services;
 
 namespace TaskManagement.Api.Tests.Controllers;
@@ -29,7 +30,7 @@ public class AuthControllerTests
             new RegisterRequest("", "user@mail.com", "secret123")));
 
         await controller.Register(new RegisterRequest("User", "user@mail.com", "secret123"));
-        await Assert.ThrowsAsync<ArgumentException>(() => controller.Register(
+        await Assert.ThrowsAsync<DuplicateResourceException>(() => controller.Register(
             new RegisterRequest("User", "user@mail.com", "secret123")));
     }
 

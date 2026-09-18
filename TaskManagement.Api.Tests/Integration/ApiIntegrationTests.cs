@@ -297,6 +297,38 @@ public class ApiIntegrationTests : IClassFixture<PostgresWebApplicationFactory>
     }
 
     [Fact]
+    public async Task CreateCategory_DuplicateName_ReturnsBadRequestInsteadOfServerError()
+    {
+        using var adminClient = await CreateAuthenticatedClientAsync("admin@mail.com");
+
+        var response = await adminClient.PostAsJsonAsync(
+            "/api/categories", new CreateCategoryRequest("Backend"));
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<object>>();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.False(body!.Success);
+        Assert.Equal("Category name is already registered", body.Message);
+    }
+
+    [Fact]
+    public async Task CreateCategory_DuplicateNameOnUpdate_ReturnsBadRequestInsteadOfServerError()
+    {
+        using var adminClient = await CreateAuthenticatedClientAsync("admin@mail.com");
+
+        var createResponse = await adminClient.PostAsJsonAsync(
+            "/api/categories", new CreateCategoryRequest("Temporary Category"));
+        var created = (await createResponse.Content.ReadFromJsonAsync<ApiResponse<CategoryResponse>>())!.Data!;
+
+        var response = await adminClient.PutAsJsonAsync(
+            $"/api/categories/{created.Id}", new UpdateCategoryRequest("Backend"));
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<object>>();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.False(body!.Success);
+        Assert.Equal("Category name is already registered", body.Message);
+    }
+
+    [Fact]
     public async Task TaskCategoryEndpoint_AssignsManyCategoriesToOwnedTask()
     {
         using var userClient = await CreateAuthenticatedClientAsync("user@mail.com");

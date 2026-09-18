@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using TaskManagement.Api.Data;
 using TaskManagement.Api.DTOs;
+using TaskManagement.Api.Errors;
 using TaskManagement.Api.Models;
 
 namespace TaskManagement.Api.Services;
@@ -125,7 +126,7 @@ public class UserService : IUserService
         var emailExists = await _dbContext.Users.AnyAsync(user => user.Email == request.Email);
         if (emailExists)
         {
-            throw new InvalidOperationException("Email is already registered");
+            throw new DuplicateResourceException("Email is already registered");
         }
 
         var user = new User
@@ -159,7 +160,7 @@ public class UserService : IUserService
 
         if (emailExists)
         {
-            throw new InvalidOperationException("Email is already registered");
+            throw new DuplicateResourceException("Email is already registered");
         }
 
         user.Name = request.Name;

@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using TaskManagement.Api.Data;
 using TaskManagement.Api.DTOs;
+using TaskManagement.Api.Errors;
 using TaskManagement.Api.Models;
 using TaskManagement.Api.Services;
 
@@ -52,14 +53,14 @@ public class AuthServiceTests
     }
 
     [Fact]
-    public async Task RegisterAsync_DuplicateEmail_ThrowsArgumentException()
+    public async Task RegisterAsync_DuplicateEmail_ThrowsDuplicateResourceException()
     {
         await using var context = TestDbContextFactory.Create();
         context.Users.Add(new User { Email = "user@mail.com" });
         await context.SaveChangesAsync();
         var service = CreateService(context);
 
-        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
+        var exception = await Assert.ThrowsAsync<DuplicateResourceException>(() =>
             service.RegisterAsync(new RegisterRequest("User", "user@mail.com", "secret123")));
 
         Assert.Equal("Email is already registered", exception.Message);

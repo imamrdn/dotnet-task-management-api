@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Moq;
 using TaskManagement.Api.Controllers;
 using TaskManagement.Api.DTOs;
+using TaskManagement.Api.Errors;
 using TaskManagement.Api.Services;
 
 namespace TaskManagement.Api.Tests.Controllers;
@@ -70,8 +71,8 @@ public class UsersControllerTests
         await Assert.ThrowsAsync<ArgumentException>(() => CreateController().CreateUser(request));
 
         _service.Setup(service => service.CreateUserAsync(request))
-            .ThrowsAsync(new InvalidOperationException("duplicate"));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => CreateController().CreateUser(request));
+            .ThrowsAsync(new DuplicateResourceException("duplicate"));
+        await Assert.ThrowsAsync<DuplicateResourceException>(() => CreateController().CreateUser(request));
     }
 
     [Fact]
@@ -110,8 +111,8 @@ public class UsersControllerTests
         await Assert.ThrowsAsync<ArgumentException>(() => controller.UpdateUser(3, request));
 
         _service.Setup(service => service.UpdateUserAsync(4, request))
-            .ThrowsAsync(new InvalidOperationException("duplicate"));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => controller.UpdateUser(4, request));
+            .ThrowsAsync(new DuplicateResourceException("duplicate"));
+        await Assert.ThrowsAsync<DuplicateResourceException>(() => controller.UpdateUser(4, request));
     }
 
     [Fact]

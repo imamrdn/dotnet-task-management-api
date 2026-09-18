@@ -12,7 +12,8 @@ public class ApiExceptionHandlerTests
     [Theory]
     [InlineData(typeof(ArgumentException), "Invalid input", 400, "Invalid input")]
     [InlineData(typeof(UnauthorizedAccessException), "Invalid credentials", 401, "Invalid credentials")]
-    [InlineData(typeof(InvalidOperationException), "Email is already registered", 400, "Email is already registered")]
+    [InlineData(typeof(DuplicateResourceException), "Email is already registered", 400, "Email is already registered")]
+    [InlineData(typeof(DuplicateResourceException), "Category name is already registered", 400, "Category name is already registered")]
     [InlineData(typeof(InvalidOperationException), "Database unavailable", 500, "An unexpected error occurred")]
     [InlineData(typeof(Exception), "Internal detail", 500, "An unexpected error occurred")]
     public async Task TryHandleAsync_MapsExceptionAndHidesServerDetails(

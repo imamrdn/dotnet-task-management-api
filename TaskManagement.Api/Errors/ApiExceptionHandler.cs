@@ -20,9 +20,8 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
         var (statusCode, message) = exception switch
         {
             ArgumentException => (StatusCodes.Status400BadRequest, exception.Message),
+            DuplicateResourceException => (StatusCodes.Status400BadRequest, exception.Message),
             UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, exception.Message),
-            InvalidOperationException when exception.Message == "Email is already registered"
-                => (StatusCodes.Status400BadRequest, exception.Message),
             _ => (StatusCodes.Status500InternalServerError, "An unexpected error occurred")
         };
 

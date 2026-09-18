@@ -136,7 +136,7 @@ public class TasksControllerTests
         _service.Setup(service => service.GetTaskByIdAsync(7, 2)).ReturnsAsync((TaskResponse?)null);
         var controller = CreateController();
 
-        Assert.IsType<NotFoundObjectResult>(await controller.GetTaskById(0));
+        Assert.IsType<BadRequestObjectResult>(await controller.GetTaskById(0));
         Assert.IsType<OkObjectResult>(await controller.GetTaskById(1));
         Assert.IsType<NotFoundObjectResult>(await controller.GetTaskById(2));
     }
@@ -162,7 +162,7 @@ public class TasksControllerTests
         var response = new TaskResponse(1, "Title", "Description", true);
         _service.Setup(service => service.UpdateTaskAsync(7, 1, validRequest)).ReturnsAsync(response);
 
-        Assert.IsType<NotFoundObjectResult>(await controller.UpdateTask(0, validRequest));
+        Assert.IsType<BadRequestObjectResult>(await controller.UpdateTask(0, validRequest));
         Assert.IsType<OkObjectResult>(await controller.UpdateTask(1, validRequest));
 
         _service.Setup(service => service.UpdateTaskAsync(7, 2, validRequest)).ReturnsAsync((TaskResponse?)null);
@@ -178,7 +178,7 @@ public class TasksControllerTests
         _service.Setup(service => service.UpdateTaskCompletionAsync(7, 1, request))
             .ReturnsAsync(response);
 
-        Assert.IsType<NotFoundObjectResult>(await controller.UpdateTaskCompletion(0, request));
+        Assert.IsType<BadRequestObjectResult>(await controller.UpdateTaskCompletion(0, request));
         Assert.IsType<OkObjectResult>(await controller.UpdateTaskCompletion(1, request));
 
         _service.Setup(service => service.UpdateTaskCompletionAsync(7, 2, request))
@@ -200,11 +200,11 @@ public class TasksControllerTests
         _service.Setup(service => service.AssignTaskCategoriesAsync(7, 1, request))
             .ReturnsAsync(categories);
 
-        Assert.IsType<NotFoundObjectResult>(await controller.GetTaskCategories(0));
+        Assert.IsType<BadRequestObjectResult>(await controller.GetTaskCategories(0));
         Assert.IsType<OkObjectResult>(await controller.GetTaskCategories(1));
         Assert.IsType<NotFoundObjectResult>(await controller.GetTaskCategories(2));
 
-        Assert.IsType<NotFoundObjectResult>(await controller.AssignTaskCategories(0, request));
+        Assert.IsType<BadRequestObjectResult>(await controller.AssignTaskCategories(0, request));
         Assert.IsType<OkObjectResult>(await controller.AssignTaskCategories(1, request));
         Assert.IsType<NotFoundObjectResult>(await controller.AssignTaskCategories(2, request));
     }
@@ -216,7 +216,7 @@ public class TasksControllerTests
         _service.Setup(service => service.DeleteTaskAsync(7, 2)).ReturnsAsync(false);
         var controller = CreateController();
 
-        Assert.IsType<NotFoundObjectResult>(await controller.DeleteTask(0));
+        Assert.IsType<BadRequestObjectResult>(await controller.DeleteTask(0));
         Assert.IsType<NoContentResult>(await controller.DeleteTask(1));
         Assert.IsType<NotFoundObjectResult>(await controller.DeleteTask(2));
     }
@@ -230,10 +230,44 @@ public class TasksControllerTests
             controller.GetTasks(1, 10, null, null, null, null));
     }
 
-    private TasksController CreateController(bool includeClaim = true)
+    [Fact]
+    public async Task GetTasks_InvalidUserClaim_ThrowsUnauthorized()
+    {
+        var controller = CreateController(claimValue: "not-a-number");
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            controller.GetTasks(1, 10, null, null, null, null));
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(0)]
+    public async Task TaskEndpoints_InvalidId_ReturnsBadRequestWithMessage(int id)
+    {
+        var controller = CreateController();
+        var updateRequest = new UpdateTaskRequest("Title", "Description", false);
+        var completionRequest = new UpdateTaskCompletionRequest(false);
+        var assignRequest = new AssignTaskCategoriesRequest([1]);
+
+        var results = new[]
+        {
+            await controller.GetTaskById(id),
+            await controller.UpdateTask(id, updateRequest),
+            await controller.UpdateTaskCompletion(id, completionRequest),
+            await controller.GetTaskCategories(id),
+            await controller.AssignTaskCategories(id, assignRequest),
+            await controller.DeleteTask(id)
+        };
+
+        Assert.All(results, result =>
+            Assert.Equal("Invalid task id",
+                Assert.IsType<ApiResponse<object>>(Assert.IsType<BadRequestObjectResult>(result).Value).Message));
+    }
+
+    private TasksController CreateController(bool includeClaim = true, string claimValue = "7")
     {
         var claims = includeClaim
-            ? new[] { new Claim(ClaimTypes.NameIdentifier, "7") }
+            ? new[] { new Claim(ClaimTypes.NameIdentifier, claimValue) }
             : [];
         var controller = new TasksController(_service.Object)
         {

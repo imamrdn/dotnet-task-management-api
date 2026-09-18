@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TaskManagement.Api.DTOs;
+using TaskManagement.Api.Extensions;
 using TaskManagement.Api.Services;
 
 namespace TaskManagement.Api.Controllers;
@@ -22,22 +23,20 @@ public class CategoriesController : ControllerBase
     {
         var categories = await _categoryService.GetCategoriesAsync(cancellationToken);
 
-        return Ok(ApiResponse<List<CategoryResponse>>.Ok("Categories retrieved successfully", categories));
+        return this.Reply(categories, "Categories retrieved successfully");
     }
 
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetCategoryById(int id, CancellationToken cancellationToken = default)
     {
-        if (id <= 0)
+        if (!id.IsValidId())
         {
-            return NotFound(ApiResponse<object>.Error("Category not found"));
+            return BadRequest(ApiResponse<object>.Error("Invalid category id"));
         }
 
         var category = await _categoryService.GetCategoryByIdAsync(id, cancellationToken);
 
-        return category is null
-            ? NotFound(ApiResponse<object>.Error("Category not found"))
-            : Ok(ApiResponse<CategoryResponse>.Ok("Category retrieved successfully", category));
+        return this.Reply(category, "Category retrieved successfully", "Category not found");
     }
 
     [HttpPost]
@@ -57,28 +56,26 @@ public class CategoriesController : ControllerBase
         UpdateCategoryRequest request,
         CancellationToken cancellationToken = default)
     {
-        if (id <= 0)
+        if (!id.IsValidId())
         {
-            return NotFound(ApiResponse<object>.Error("Category not found"));
+            return BadRequest(ApiResponse<object>.Error("Invalid category id"));
         }
 
         var category = await _categoryService.UpdateCategoryAsync(id, request, cancellationToken);
 
-        return category is null
-            ? NotFound(ApiResponse<object>.Error("Category not found"))
-            : Ok(ApiResponse<CategoryResponse>.Ok("Category updated successfully", category));
+        return this.Reply(category, "Category updated successfully", "Category not found");
     }
 
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteCategory(int id, CancellationToken cancellationToken = default)
     {
-        if (id <= 0)
+        if (!id.IsValidId())
         {
-            return NotFound(ApiResponse<object>.Error("Category not found"));
+            return BadRequest(ApiResponse<object>.Error("Invalid category id"));
         }
 
         var isDeleted = await _categoryService.DeleteCategoryAsync(id, cancellationToken);
 
-        return isDeleted ? NoContent() : NotFound(ApiResponse<object>.Error("Category not found"));
+        return this.Reply(isDeleted, "Category not found");
     }
 }

@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TaskManagement.Api.DTOs;
+using TaskManagement.Api.Extensions;
 using TaskManagement.Api.Services;
 
 namespace TaskManagement.Api.Controllers;
@@ -48,7 +49,7 @@ public class TasksController : ControllerBase
         var userId = GetUserIdFromClaims();
         var taskItems = await _taskService.GetTasksAsync(userId, page, limit, search, isCompleted, sortBy, sortDirection, cancellationToken);
 
-        return Ok(ApiResponse<PaginatedResponse<TaskResponse>>.Ok("Tasks retrieved successfully", taskItems));
+        return this.Reply(taskItems, "Tasks retrieved successfully");
     }
 
     [Authorize(Policy = "AdminOnly")]
@@ -57,7 +58,7 @@ public class TasksController : ControllerBase
     {
         var tasks = await _taskService.GetAllTasksWithOwnersAsync(cancellationToken);
 
-        return Ok(ApiResponse<List<TaskWithOwnerResponse>>.Ok("Tasks with owners retrieved successfully", tasks));
+        return this.Reply(tasks, "Tasks with owners retrieved successfully");
     }
 
     [Authorize(Policy = "AdminOnly")]
@@ -71,7 +72,7 @@ public class TasksController : ControllerBase
 
         var summaries = await _taskService.GetTaskSummaryByUserAsync(minimumTasks, cancellationToken);
 
-        return Ok(ApiResponse<List<TaskSummaryByUserResponse>>.Ok("Task summary retrieved successfully", summaries));
+        return this.Reply(summaries, "Task summary retrieved successfully");
     }
 
     [Authorize(Policy = "AdminOnly")]
@@ -85,23 +86,21 @@ public class TasksController : ControllerBase
 
         var owners = await _taskService.GetTopTaskOwnersAsync(limit, cancellationToken);
 
-        return Ok(ApiResponse<List<TopTaskOwnerResponse>>.Ok("Top task owners retrieved successfully", owners));
+        return this.Reply(owners, "Top task owners retrieved successfully");
     }
 
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetTaskById(int id, CancellationToken cancellationToken = default)
     {
-        if (id <= 0)
+        if (!id.IsValidId())
         {
-            return NotFound(ApiResponse<object>.Error("Task not found"));
+            return BadRequest(ApiResponse<object>.Error("Invalid task id"));
         }
 
         var userId = GetUserIdFromClaims();
         var response = await _taskService.GetTaskByIdAsync(userId, id, cancellationToken);
 
-        return response is null
-            ? NotFound(ApiResponse<object>.Error("Task not found"))
-            : Ok(ApiResponse<TaskResponse>.Ok("Task retrieved successfully", response));
+        return this.Reply(response, "Task retrieved successfully", "Task not found");
     }
 
     [HttpPost]
@@ -117,17 +116,15 @@ public class TasksController : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<IActionResult> UpdateTask(int id, UpdateTaskRequest request, CancellationToken cancellationToken = default)
     {
-        if (id <= 0)
+        if (!id.IsValidId())
         {
-            return NotFound(ApiResponse<object>.Error("Task not found"));
+            return BadRequest(ApiResponse<object>.Error("Invalid task id"));
         }
 
         var userId = GetUserIdFromClaims();
         var response = await _taskService.UpdateTaskAsync(userId, id, request, cancellationToken);
 
-        return response is null
-            ? NotFound(ApiResponse<object>.Error("Task not found"))
-            : Ok(ApiResponse<TaskResponse>.Ok("Task updated successfully", response));
+        return this.Reply(response, "Task updated successfully", "Task not found");
     }
 
     [HttpPatch("{id:int}/completion")]
@@ -136,33 +133,29 @@ public class TasksController : ControllerBase
         UpdateTaskCompletionRequest request,
         CancellationToken cancellationToken = default)
     {
-        if (id <= 0)
+        if (!id.IsValidId())
         {
-            return NotFound(ApiResponse<object>.Error("Task not found"));
+            return BadRequest(ApiResponse<object>.Error("Invalid task id"));
         }
 
         var userId = GetUserIdFromClaims();
         var response = await _taskService.UpdateTaskCompletionAsync(userId, id, request, cancellationToken);
 
-        return response is null
-            ? NotFound(ApiResponse<object>.Error("Task not found"))
-            : Ok(ApiResponse<TaskResponse>.Ok("Task completion updated successfully", response));
+        return this.Reply(response, "Task completion updated successfully", "Task not found");
     }
 
     [HttpGet("{id:int}/categories")]
     public async Task<IActionResult> GetTaskCategories(int id, CancellationToken cancellationToken = default)
     {
-        if (id <= 0)
+        if (!id.IsValidId())
         {
-            return NotFound(ApiResponse<object>.Error("Task not found"));
+            return BadRequest(ApiResponse<object>.Error("Invalid task id"));
         }
 
         var userId = GetUserIdFromClaims();
         var categories = await _taskService.GetTaskCategoriesAsync(userId, id, cancellationToken);
 
-        return categories is null
-            ? NotFound(ApiResponse<object>.Error("Task not found"))
-            : Ok(ApiResponse<List<CategoryResponse>>.Ok("Task categories retrieved successfully", categories));
+        return this.Reply(categories, "Task categories retrieved successfully", "Task not found");
     }
 
     [HttpPut("{id:int}/categories")]
@@ -171,41 +164,39 @@ public class TasksController : ControllerBase
         AssignTaskCategoriesRequest request,
         CancellationToken cancellationToken = default)
     {
-        if (id <= 0)
+        if (!id.IsValidId())
         {
-            return NotFound(ApiResponse<object>.Error("Task not found"));
+            return BadRequest(ApiResponse<object>.Error("Invalid task id"));
         }
 
         var userId = GetUserIdFromClaims();
         var categories = await _taskService.AssignTaskCategoriesAsync(userId, id, request, cancellationToken);
 
-        return categories is null
-            ? NotFound(ApiResponse<object>.Error("Task not found"))
-            : Ok(ApiResponse<List<CategoryResponse>>.Ok("Task categories updated successfully", categories));
+        return this.Reply(categories, "Task categories updated successfully", "Task not found");
     }
 
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteTask(int id, CancellationToken cancellationToken = default)
     {
-        if (id <= 0)
+        if (!id.IsValidId())
         {
-            return NotFound(ApiResponse<object>.Error("Task not found"));
+            return BadRequest(ApiResponse<object>.Error("Invalid task id"));
         }
 
         var userId = GetUserIdFromClaims();
         var isDeleted = await _taskService.DeleteTaskAsync(userId, id, cancellationToken);
 
-        return isDeleted ? NoContent() : NotFound(ApiResponse<object>.Error("Task not found"));
+        return this.Reply(isDeleted, "Task not found");
     }
 
     private int GetUserIdFromClaims()
     {
         var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
-        if (userIdClaim == null)
+        if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out var userId))
         {
-            throw new UnauthorizedAccessException("User ID claim not found");
+            throw new UnauthorizedAccessException("User ID claim is invalid");
         }
 
-        return int.Parse(userIdClaim.Value);
+        return userId;
     }
 }

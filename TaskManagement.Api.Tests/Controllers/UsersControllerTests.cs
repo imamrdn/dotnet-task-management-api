@@ -40,7 +40,7 @@ public class UsersControllerTests
         _service.Setup(service => service.GetUserByIdAsync(1))
             .ReturnsAsync(new UserResponse(1, "User", "user@mail.com"));
 
-        Assert.IsType<NotFoundObjectResult>(await CreateController().GetUserById(0));
+        Assert.IsType<BadRequestObjectResult>(await CreateController().GetUserById(0));
         Assert.IsType<OkObjectResult>(await CreateController().GetUserById(1));
         Assert.IsType<NotFoundObjectResult>(await CreateController().GetUserById(2));
     }
@@ -51,7 +51,7 @@ public class UsersControllerTests
         _service.Setup(service => service.GetUserProfileAsync(1))
             .ReturnsAsync(new UserProfileResponse(1, 1, "Bio", "Location"));
 
-        Assert.IsType<NotFoundObjectResult>(await CreateController().GetUserProfile(0));
+        Assert.IsType<BadRequestObjectResult>(await CreateController().GetUserProfile(0));
         Assert.IsType<OkObjectResult>(await CreateController().GetUserProfile(1));
         Assert.IsType<NotFoundObjectResult>(await CreateController().GetUserProfile(2));
     }
@@ -83,7 +83,7 @@ public class UsersControllerTests
         _service.Setup(service => service.UpsertUserProfileAsync(1, request))
             .ReturnsAsync(new UserProfileResponse(1, 1, request.Bio, request.Location));
 
-        Assert.IsType<NotFoundObjectResult>(await controller.UpsertUserProfile(0, request));
+        Assert.IsType<BadRequestObjectResult>(await controller.UpsertUserProfile(0, request));
         Assert.IsType<OkObjectResult>(await controller.UpsertUserProfile(1, request));
 
         _service.Setup(service => service.UpsertUserProfileAsync(2, request))
@@ -97,7 +97,7 @@ public class UsersControllerTests
         var request = new UpdateUserRequest("User", "user@mail.com", null);
         var controller = CreateController();
 
-        Assert.IsType<NotFoundObjectResult>(await controller.UpdateUser(0, request));
+        Assert.IsType<BadRequestObjectResult>(await controller.UpdateUser(0, request));
 
         _service.Setup(service => service.UpdateUserAsync(1, request))
             .ReturnsAsync(new UserResponse(1, request.Name, request.Email));
@@ -122,9 +122,32 @@ public class UsersControllerTests
         _service.Setup(service => service.DeleteUserAsync(2)).ReturnsAsync(false);
         var controller = CreateController();
 
-        Assert.IsType<NotFoundObjectResult>(await controller.DeleteUser(0));
+        Assert.IsType<BadRequestObjectResult>(await controller.DeleteUser(0));
         Assert.IsType<NoContentResult>(await controller.DeleteUser(1));
         Assert.IsType<NotFoundObjectResult>(await controller.DeleteUser(2));
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(0)]
+    public async Task UserEndpoints_InvalidId_ReturnsBadRequestWithMessage(int id)
+    {
+        var controller = CreateController();
+        var updateRequest = new UpdateUserRequest("User", "user@mail.com", null);
+        var profileRequest = new UpsertUserProfileRequest("Bio", "Location");
+
+        var results = new[]
+        {
+            await controller.GetUserById(id),
+            await controller.GetUserProfile(id),
+            await controller.UpsertUserProfile(id, profileRequest),
+            await controller.UpdateUser(id, updateRequest),
+            await controller.DeleteUser(id)
+        };
+
+        Assert.All(results, result =>
+            Assert.Equal("Invalid user id",
+                Assert.IsType<ApiResponse<object>>(Assert.IsType<BadRequestObjectResult>(result).Value).Message));
     }
 
     private UsersController CreateController() => new(_service.Object);

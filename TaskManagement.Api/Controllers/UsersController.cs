@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TaskManagement.Api.DTOs;
+using TaskManagement.Api.Extensions;
 using TaskManagement.Api.Services;
 
 namespace TaskManagement.Api.Controllers;
@@ -22,7 +23,7 @@ public class UsersController : ControllerBase
     {
         var users = await _userService.GetUsersAsync(cancellationToken);
 
-        return Ok(ApiResponse<List<UserResponse>>.Ok("Users retrieved successfully", users));
+        return this.Reply(users, "Users retrieved successfully");
     }
 
     [HttpGet("without-tasks")]
@@ -30,22 +31,20 @@ public class UsersController : ControllerBase
     {
         var users = await _userService.GetUsersWithoutActiveTasksAsync(cancellationToken);
 
-        return Ok(ApiResponse<List<UserResponse>>.Ok("Users without active tasks retrieved successfully", users));
+        return this.Reply(users, "Users without active tasks retrieved successfully");
     }
 
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetUserById(int id, CancellationToken cancellationToken = default)
     {
-        if (id <= 0)
+        if (!id.IsValidId())
         {
-            return NotFound(ApiResponse<object>.Error("User not found"));
+            return BadRequest(ApiResponse<object>.Error("Invalid user id"));
         }
 
         var user = await _userService.GetUserByIdAsync(id, cancellationToken);
 
-        return user is null
-            ? NotFound(ApiResponse<object>.Error("User not found"))
-            : Ok(ApiResponse<UserResponse>.Ok("User retrieved successfully", user));
+        return this.Reply(user, "User retrieved successfully", "User not found");
     }
 
     [HttpPost]
@@ -59,57 +58,52 @@ public class UsersController : ControllerBase
     [HttpGet("{id:int}/profile")]
     public async Task<IActionResult> GetUserProfile(int id, CancellationToken cancellationToken = default)
     {
-        if (id <= 0)
+        if (!id.IsValidId())
         {
-            return NotFound(ApiResponse<object>.Error("User profile not found"));
+            return BadRequest(ApiResponse<object>.Error("Invalid user id"));
         }
 
         var profile = await _userService.GetUserProfileAsync(id, cancellationToken);
 
-        return profile is null
-            ? NotFound(ApiResponse<object>.Error("User profile not found"))
-            : Ok(ApiResponse<UserProfileResponse>.Ok("User profile retrieved successfully", profile));
+        return this.Reply(profile, "User profile retrieved successfully", "User profile not found");
     }
 
     [HttpPut("{id:int}/profile")]
     public async Task<IActionResult> UpsertUserProfile(int id, UpsertUserProfileRequest request, CancellationToken cancellationToken = default)
     {
-        if (id <= 0)
+        if (!id.IsValidId())
         {
-            return NotFound(ApiResponse<object>.Error("User not found"));
+            return BadRequest(ApiResponse<object>.Error("Invalid user id"));
         }
 
         var profile = await _userService.UpsertUserProfileAsync(id, request, cancellationToken);
 
-        return profile is null
-            ? NotFound(ApiResponse<object>.Error("User not found"))
-            : Ok(ApiResponse<UserProfileResponse>.Ok("User profile saved successfully", profile));
+        return this.Reply(profile, "User profile saved successfully", "User not found");
     }
 
     [HttpPut("{id:int}")]
     public async Task<IActionResult> UpdateUser(int id, UpdateUserRequest request, CancellationToken cancellationToken = default)
     {
-        if (id <= 0)
+        if (!id.IsValidId())
         {
-            return NotFound(ApiResponse<object>.Error("User not found"));
+            return BadRequest(ApiResponse<object>.Error("Invalid user id"));
         }
 
         var user = await _userService.UpdateUserAsync(id, request, cancellationToken);
-        return user is null
-            ? NotFound(ApiResponse<object>.Error("User not found"))
-            : Ok(ApiResponse<UserResponse>.Ok("User updated successfully", user));
+
+        return this.Reply(user, "User updated successfully", "User not found");
     }
 
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteUser(int id, CancellationToken cancellationToken = default)
     {
-        if (id <= 0)
+        if (!id.IsValidId())
         {
-            return NotFound(ApiResponse<object>.Error("User not found"));
+            return BadRequest(ApiResponse<object>.Error("Invalid user id"));
         }
 
         var isDeleted = await _userService.DeleteUserAsync(id, cancellationToken);
 
-        return isDeleted ? NoContent() : NotFound(ApiResponse<object>.Error("User not found"));
+        return this.Reply(isDeleted, "User not found");
     }
 }

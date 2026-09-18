@@ -24,7 +24,7 @@ public class CategoriesControllerTests
         _service.Setup(service => service.GetCategoryByIdAsync(1, default))
             .ReturnsAsync(new CategoryResponse(1, "Backend"));
 
-        Assert.IsType<NotFoundObjectResult>(await CreateController().GetCategoryById(0));
+        Assert.IsType<BadRequestObjectResult>(await CreateController().GetCategoryById(0));
         Assert.IsType<OkObjectResult>(await CreateController().GetCategoryById(1));
         Assert.IsType<NotFoundObjectResult>(await CreateController().GetCategoryById(2));
     }
@@ -48,7 +48,7 @@ public class CategoriesControllerTests
         _service.Setup(service => service.UpdateCategoryAsync(1, request, default))
             .ReturnsAsync(new CategoryResponse(1, request.Name));
 
-        Assert.IsType<NotFoundObjectResult>(await CreateController().UpdateCategory(0, request));
+        Assert.IsType<BadRequestObjectResult>(await CreateController().UpdateCategory(0, request));
         Assert.IsType<OkObjectResult>(await CreateController().UpdateCategory(1, request));
         Assert.IsType<NotFoundObjectResult>(await CreateController().UpdateCategory(2, request));
     }
@@ -59,9 +59,28 @@ public class CategoriesControllerTests
         _service.Setup(service => service.DeleteCategoryAsync(1, default)).ReturnsAsync(true);
         _service.Setup(service => service.DeleteCategoryAsync(2, default)).ReturnsAsync(false);
 
-        Assert.IsType<NotFoundObjectResult>(await CreateController().DeleteCategory(0));
+        Assert.IsType<BadRequestObjectResult>(await CreateController().DeleteCategory(0));
         Assert.IsType<NoContentResult>(await CreateController().DeleteCategory(1));
         Assert.IsType<NotFoundObjectResult>(await CreateController().DeleteCategory(2));
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(0)]
+    public async Task CategoryEndpoints_InvalidId_ReturnsBadRequestWithMessage(int id)
+    {
+        var request = new UpdateCategoryRequest("Backend");
+
+        var results = new[]
+        {
+            await CreateController().GetCategoryById(id),
+            await CreateController().UpdateCategory(id, request),
+            await CreateController().DeleteCategory(id)
+        };
+
+        Assert.All(results, result =>
+            Assert.Equal("Invalid category id",
+                Assert.IsType<ApiResponse<object>>(Assert.IsType<BadRequestObjectResult>(result).Value).Message));
     }
 
     private CategoriesController CreateController() => new(_service.Object);

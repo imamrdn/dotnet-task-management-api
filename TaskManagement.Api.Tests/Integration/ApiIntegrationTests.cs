@@ -172,6 +172,33 @@ public class ApiIntegrationTests : IClassFixture<PostgresWebApplicationFactory>
         Assert.Null(body.Data);
     }
 
+    [Theory]
+    [InlineData("/api/tasks/0", "Invalid task id")]
+    [InlineData("/api/tasks/-1", "Invalid task id")]
+    public async Task InvalidTaskId_ReturnsBadRequest(string url, string expectedMessage)
+    {
+        using var client = await CreateAuthenticatedClientAsync("user@mail.com");
+
+        var response = await client.GetAsync(url);
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<object>>();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.False(body!.Success);
+        Assert.Equal(expectedMessage, body.Message);
+    }
+
+    [Fact]
+    public async Task InvalidUserId_ReturnsBadRequest()
+    {
+        using var adminClient = await CreateAuthenticatedClientAsync("admin@mail.com");
+
+        var response = await adminClient.GetAsync("/api/users/0");
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<object>>();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("Invalid user id", body!.Message);
+    }
+
     [Fact]
     public async Task Login_ValidCredentials_ReturnsUsableJwt()
     {

@@ -423,13 +423,27 @@ Tidak ada lagi `new PasswordHasher` di project API (lihat Step 5).
 **Why it matters:** Inkonsistensi pola; controller `AuthController` meng-`new`-kan lewat DI class konkret.
 **Suggested direction:** Pilih satu konvensi. Untuk konsistensi, tambahkan `IAuthService`.
 
-#### 5. Validasi id `id <= 0` mengembalikan 404, bukan 400
+#### 5. Validasi id `id <= 0` mengembalikan 404, bukan 400 — ✅ SUDAH DIPERBAIKI
 
 **Issue:** Di banyak endpoint, `if (id <= 0) return NotFound(...)`. Padahal `id = 0` atau negatif adalah
 request yang tidak valid (400), bukan "resource tidak ditemukan" (404).
 **Location:** `Controllers/TasksController.cs`, `Controllers/UsersController.cs`, `Controllers/CategoriesController.cs`.
 **Why it matters:** Semantik HTTP/REST kurang tepat; klien tidak bisa membedakan "input salah" vs "tidak ada".
 **Suggested direction:** Pelajari perbedaan 400 vs 404, lalu kembalikan `BadRequest` untuk id tidak valid.
+**Resolution:** Semua guard kini memakai `if (!id.IsValidId()) return BadRequest("Invalid ... id")`
+(id valid tapi tidak ada tetap 404).
+
+**Catatan standarisasi controller (ditambahkan belakangan atas permintaan):**
+File baru `TaskManagement.Api/Extensions/ControllerExtensions.cs` berisi extension method
+`Reply` (dipilih lewat diskusi opsi penamaan) dengan tiga bentuk:
+- `this.Reply(data, okMessage, notFoundMessage)` → 200 bila data ada, 404 bila null
+  (endpoint single-resource: GET/PUT/PATCH by id).
+- `this.Reply(deleted, notFoundMessage)` → 204 bila true, 404 bila false (endpoint DELETE).
+- `this.Reply(data, okMessage)` → selalu 200 (endpoint GET list yang datanya tidak pernah null).
+- `id.IsValidId()` (`id > 0`) untuk guard id di semua controller.
+Yang sengaja tetap manual: `Created(...)` (membawa location header), `BadRequest(...)` validasi
+(pesan unik per kasus), dan `Ok(...)` di `AuthController` (tidak punya cabang 404 — gagal
+berupa exception ke global handler). Test tidak perlu diubah karena tipe hasil HTTP-nya sama.
 
 #### 6. Tidak ada batas maksimum `limit` pada pagination — ✅ SUDAH DIPERBAIKI
 
@@ -460,12 +474,14 @@ mengembalikan **HTTP 200** dengan `page = 1`, `limit = 10`. Diuji di unit test d
 `[MaxLength]` (Bio 500, Location 200). `UpdateTaskCompletionRequest` masih berupa `bool` (tidak butuh
 validasi tambahan), jadi tidak diubah.
 
-#### 9. `int.Parse` pada claim bisa melempar `FormatException` → 500
+#### 9. `int.Parse` pada claim bisa melempar `FormatException` → 500 — ✅ SUDAH DIPERBAIKI
 
 **Issue:** `GetUserIdFromClaims` memakai `int.Parse(userIdClaim.Value)` tanpa `TryParse`.
 **Location:** `Controllers/TasksController.cs` baris 194–203.
 **Why it matters:** Jika claim `NameIdentifier` tidak valid, muncul 500 (harusnya 401).
 **Suggested direction:** Gunakan `int.TryParse` dan lempar `UnauthorizedAccessException` jika gagal.
+**Resolution:** Sudah diganti `int.TryParse`; claim hilang/rusak → `UnauthorizedAccessException`
+("User ID claim is invalid") → **401**. Diuji di `TasksControllerTests`.
 
 #### 10. `CancellationToken` tidak konsisten — ✅ SUDAH DIPERBAIKI
 
@@ -533,7 +549,7 @@ Jangan dikerjakan dulu; fokus ke fundamental.
 | OOP | ✅ Practiced | Class + interface (`ITaskService`/`TaskService`), encapsulation lewat constructor injection, entity class | — |
 | Dependency Injection | ✅ Practiced | Registrasi `AddScoped<ITaskService, TaskService>()` dll di `Program.cs`; constructor injection di semua controller/service | Lifetime Scoped dipakai konsisten |
 | ASP.NET Core | ✅ Practiced | `Program.cs` (minimal hosting), Controllers, middleware pipeline, `AddOpenApi`, health checks, CORS | Pemahaman pipeline cukup baik |
-| REST API | ✅ Practiced | Resource `tasks`/`users`/`categories`, method GET/POST/PUT/PATCH/DELETE, status 200/201/204/400/401/403/404 | Ada beberapa semantik status code yang perlu diperbaiki (lihat Code Audit) |
+| REST API | ✅ Practiced | Resource `tasks`/`users`/`categories`, method GET/POST/PUT/PATCH/DELETE, status 200/201/204/400/401/403/404, semantik 400 vs 404 diperbaiki + response helper `Reply` | Semantik id tidak valid diperbaiki belakangan (lihat Code Audit #5) |
 | Entity Framework Core | ✅ Practiced | Migrations (25 file), relasi one-to-many & one-to-one & many-to-many, unique index, `AsNoTracking`, projection `.Select`, `Include`, soft delete | Cukup dalam untuk level latihan |
 | LINQ | ✅ Practiced | `Where`, `GroupBy`, `OrderBy`/`ThenBy`, `Select`, `Count`, `Any`, `Contains` di `TaskService`/`UserService` | Termasuk query yang di-translate ke SQL |
 | DTO | ✅ Practiced | Folder `DTOs/` terpisah dari `Models/`; request & response terpisah | Tidak membocorkan entity ke API |
@@ -559,8 +575,8 @@ Berdasarkan project, konsep fundamental yang **paling relevan** untuk dipelajari
    menerapkan pola ini ke seluruh exception bisnis agar tidak ada lagi mapping berbasis string.
 
 2. **Semantik HTTP / REST (status code yang tepat).**
-   Perbedaan 400 vs 404 vs 409, kapan memakai masing-masing. Banyak endpoint masih memakai
-   `NotFound` untuk id tidak valid.
+   Sudah dipraktikkan belakangan (id tidak valid → 400, `TryParse` claim → 401).
+   Perbedaan 400 vs 404 vs 409 kini konsisten di seluruh endpoint.
 
 3. **EF Core: global query filters untuk soft delete.**
    Saat ini filter `IsDeleted` diterapkan manual di setiap query — berisiko lupa.
@@ -809,78 +825,82 @@ Terakhir, supaya semua perbaikan "terkunci" oleh test. Ini melatih disiplin test
 
 ## 🎯 NEXT TASK
 
-> Catatan: Step 1–5 **sudah selesai**. Regression test (Step 6) sebagian besar sudah dikerjakan
-> di setiap step. Berikut task lanjutan yang paling masuk akal dari sisa temuan audit.
+> Catatan: Step 1–5, task semantik 400 vs 404, dan standarisasi controller (`Reply`)
+> **sudah selesai**. Berikut task berikutnya dari sisa temuan audit.
 
-# Perbaiki semantik status code untuk id tidak valid (404 → 400)
+# Rapikan duplikasi validasi manual Name/Email/Password
 
 ## Objective
 
-Mengubah semua validasi `if (id <= 0) return NotFound(...)` di `TasksController`,
-`UsersController`, dan `CategoriesController` menjadi `return BadRequest(...)`, karena
-id nol/negatif adalah **request tidak valid** (400), bukan "resource tidak ditemukan" (404).
-Sekalian perbaiki `GetUserIdFromClaims` yang memakai `int.Parse` tanpa pengaman
-(claim rusak → `FormatException` → 500, seharusnya 401).
+Menyatukan cek `string.IsNullOrWhiteSpace` untuk Name/Email/Password yang saat ini ditulis
+ulang di `AuthService` (register/login) dan `UserService` (create/update user), sehingga
+aturan "field wajib" hanya didefinisikan di **satu tempat**.
 
 ## Why This Task
 
-- Ini sisa gap terbesar di "Biggest Gaps": **semantik HTTP/REST**. Setelah Step 1–5,
-  status code sudah benar untuk duplikat/validasi/delete, tetapi belum untuk id tidak valid.
-- Perubahan kecil, terisolasi di controller, dan mudah diuji — latihan yang pas untuk
-  memahami perbedaan 400 vs 404 secara konkret.
-- Sekalian menutup potensi 500 dari `int.Parse` claim, pola yang sama dengan bug
-  `categoryIds: null` di Step 2 (input tak terduga → 500).
+- Sisa duplikasi yang paling jelas setelah Step 5: pesan dan aturan validasi yang sama
+  tersebar di dua service. Kalau suatu hari aturannya berubah (mis. password minimal 8 karakter),
+  harus diubah di banyak tempat dan rawan tidak konsisten.
+- Melatih DRY pada level validasi — kelanjutan natural dari Step 2 (DataAnnotations) dan
+  Step 5 (menghilangkan duplikasi hasher).
+- Kecil dan terisolasi: hanya menyentuh validasi input, tidak mengubah skema, auth flow,
+  atau status code.
 
 ## Files To Study First
 
-1. `TaskManagement.Api/Controllers/TasksController.cs` — pola `if (id <= 0)` + `GetUserIdFromClaims`.
-2. `TaskManagement.Api/Controllers/UsersController.cs` — pola yang sama.
-3. `TaskManagement.Api/Controllers/CategoriesController.cs` — pola yang sama.
-4. `TaskManagement.Api/Errors/ApiExceptionHandler.cs` — pengecualian: `UnauthorizedAccessException`
-   sudah dipetakan ke 401, jadi lempar itu dari `GetUserIdFromClaims`.
-5. `TaskManagement.Api.Tests/Controllers/TasksControllerTests.cs` (dan Users/Categories) —
-   test yang mengassert `NotFoundObjectResult` untuk id 0 perlu diperbarui ke `BadRequestObjectResult`.
+1. `TaskManagement.Api/Services/AuthService.cs` — validasi Name/Email/Password di
+   `RegisterAsync` dan Email/Password di `LoginAsync`.
+2. `TaskManagement.Api/Services/UserService.cs` — `ValidateUserRequest` + cek Password
+   di `CreateUserAsync`.
+3. `TaskManagement.Api/DTOs/RegisterRequest.cs`, `CreateUserRequest.cs`, `LoginRequest.cs` —
+   DataAnnotations yang sudah ada (`[Required]`, `[EmailAddress]`); pahami kenapa validasi
+   manual di service masih ada (lapisan kedua untuk pemanggil non-HTTP/test langsung).
+4. `TaskManagement.Api/Errors/ApiExceptionHandler.cs` — `ArgumentException` → 400, jadi pesan
+   error dari helper bersama otomatis tetap 400.
 
 ## Concepts To Understand
 
-- **Semantik HTTP status code**: 400 = "request-mu salah", 404 = "request-mu valid tapi
-  datanya tidak ada". Klien (dan dokumentasi API) mengandalkan perbedaan ini.
-- **`int.TryParse` vs `int.Parse`**: kenapa parsing input eksternal (termasuk claim JWT)
-  harus memakai versi yang aman.
-- Bagaimana `[ApiController]` + route constraint `{id:int}` berinteraksi: constraint hanya
-  memastikan format integer, bukan nilai positif — jadi cek `<= 0` tetap diperlukan.
+- **DRY untuk validasi**: kapan logika boleh diduplikasi vs harus disatukan.
+- **Shared helper vs DataAnnotations**: DataAnnotations hanya jalan lewat model binding HTTP;
+  validasi di service melindungi pemanggil langsung (seperti unit test). Helper bersama
+  menutup keduanya tanpa duplikasi.
+- Menjaga **pesan error tetap sama** agar test dan klien tidak terdampak (refactor murni).
 
 ## Implementation Direction
 
-1. **Pelajari** semua kemunculan `if (id <= 0)` di ketiga controller (cari dengan grep)
-   dan pahami responsnya saat ini (404 + pesan "not found").
-2. **Ubah** masing-masing menjadi `BadRequest` dengan pesan yang menjelaskan inputnya salah
-   (mis. "Invalid task id" — tentukan pesan yang konsisten antar controller).
-3. **Perbaiki** `GetUserIdFromClaims`: ganti `int.Parse` dengan `int.TryParse`; bila gagal
-   (claim hilang atau bukan angka), lempar `UnauthorizedAccessException` agar menjadi 401.
-4. **Handle** test lama: perbarui assertion `NotFoundObjectResult` → `BadRequestObjectResult`
-   untuk kasus id 0/negatif, dan tambah test untuk claim tidak valid bila memungkinkan.
-5. **Test**: `dotnet test` harus hijau; perilaku untuk id valid tidak berubah.
+1. **Pelajari** semua cek manual Name/Email/Password di kedua service (cari dengan grep
+   `IsNullOrWhiteSpace`) dan catat pesan error masing-masing.
+2. **Pilih bentuk penyatuan.** Dua opsi masuk akal:
+   - (a) Satu static helper (mis. `UserValidation.RequireNameEmail(...)` /
+     `RequirePassword(...)`) yang melempar `ArgumentException` dengan pesan yang sama
+     seperti sekarang, dipanggil dari kedua service; atau
+   - (b) Pindahkan sepenuhnya ke DataAnnotations di DTO dan hapus cek manual yang
+     redundan — hanya bila yakin semua pemanggil lewat HTTP validation.
+   Opsi (a) lebih aman karena tidak mengubah perilaku pemanggil langsung.
+3. **Terapkan** pilihan tadi di `AuthService` dan `UserService`.
+4. **Handle** agar pesan error tidak berubah (test yang ada mengassert pesan seperti
+   "Name is required" — pastikan tetap hijau tanpa modifikasi).
+5. **Test**: `dotnet test` harus hijau tanpa mengubah test yang ada; tambah test kecil
+   untuk helper bila logikanya non-trivial.
 
 ## Expected Behavior
 
 Setelah selesai:
 
-- `GET /api/tasks/0`, `PUT /api/users/-1`, `DELETE /api/categories/0`, dll. →
-  HTTP **400** (bukan 404).
-- `GET /api/tasks/999999` (id valid tapi tidak ada) → tetap **404**.
-- Token dengan claim user-id rusak → **401** (bukan 500).
+- Perilaku API **tidak berubah sama sekali** (pesan error dan status code identik).
+- Aturan "field wajib" hanya ada di satu tempat; mengubah pesan/aturan cukup sekali.
+- Semua test lama tetap hijau.
 
 ## How To Verify
 
-1. **Automated test:**
-   - Perbarui/tambah unit test controller untuk id 0 dan negatif → `BadRequestObjectResult`.
-   - `dotnet test TaskManagement.slnx` → semua hijau.
-
-2. **Manual via Bruno/curl (login dulu sebagai user/admin):**
-   - `GET /api/tasks/0` → **400**.
-   - `GET /api/tasks/999999` → **404**.
-   - `DELETE /api/users/-5` → **400**.
+1. **Pencarian kode:**
+   - Cari `IsNullOrWhiteSpace` di `Services/` → hanya muncul di helper bersama
+     (atau hilang sepenuhnya bila memilih opsi b).
+2. **Automated test:**
+   - `dotnet test TaskManagement.slnx` → semua hijau **tanpa mengubah** test yang ada
+     (membuktikan pesan error tidak berubah).
+3. **Manual via Bruno/curl:**
+   - `POST /api/auth/register` dengan name kosong → **400** "Name is required" (sama seperti dulu).
 
 ---
 
@@ -893,10 +913,11 @@ PostgreSQL + EF Core (26 migration), JWT authentication **plus refresh token rot
 authorization, soft delete task, relasi many-to-many (task↔category), profil user one-to-one,
 demo seeding, health check, OpenAPI, CORS per-environment, CI GitHub Actions, serta **test unit dan
 integration yang luas**. Arsitekturnya rapi: **Controller → Service → DbContext → PostgreSQL**, tanpa
-over-engineering. Tidak ditemukan TODO/FIXME. Lima area sudah dibereskan: bug kategori duplikat → 500
-(Step 1), validasi yang hilang (Step 2), soft delete otomatis via global query filter (Step 3),
-kebijakan hapus user yang aman (Step 4), serta konsistensi `CancellationToken` + DI password hashing
-(Step 5). Tersisa perapian semantik HTTP (400 vs 404). Test suite saat ini **140 test hijau**.
+over-engineering. Tidak ditemukan TODO/FIXME. Semua area roadmap sudah dibereskan: bug kategori
+duplikat → 500 (Step 1), validasi yang hilang (Step 2), soft delete otomatis via global query
+filter (Step 3), kebijakan hapus user yang aman (Step 4), konsistensi `CancellationToken` + DI
+password hashing (Step 5), semantik 400 vs 404 (task lanjutan), plus standarisasi response
+controller via extension method `Reply`. Test suite saat ini **150 test hijau**.
 
 ### What I Have Practiced
 
@@ -910,29 +931,30 @@ authorization (policy & role), unit testing (xUnit + Moq), dan integration testi
 Selain itu, baru dipraktikkan: **custom exception + pemetaan exception berbasis tipe** (Step 1),
 **validasi DataAnnotations lanjutan & validasi query parameter** (Step 2),
 **EF Core global query filter untuk soft delete** (Step 3), **kebijakan delete yang aman
-dengan Restrict + guard di service + migration FK** (Step 4), serta **mendaftarkan service
-framework (`IPasswordHasher<T>`) di DI + meneruskan `CancellationToken` end-to-end** (Step 5).
+dengan Restrict + guard di service + migration FK** (Step 4), **mendaftarkan service
+framework (`IPasswordHasher<T>`) di DI + meneruskan `CancellationToken` end-to-end** (Step 5),
+serta **semantik 400 vs 404 + extension method untuk standarisasi response controller**.
 
 ### Biggest Gaps
 
-1. **Semantik HTTP/REST** — id tidak valid masih mengembalikan 404 (seharusnya 400);
-   `int.Parse` claim tanpa pengaman (potensi 500).
-2. **Duplikasi validasi manual** — cek `IsNullOrWhiteSpace` Name/Email/Password tersebar
+1. **Duplikasi validasi manual** — cek `IsNullOrWhiteSpace` Name/Email/Password tersebar
    di `AuthService`/`UserService` (bisa disatukan via DataAnnotations/helper).
-3. **Keputusan desain lanjutan** — mis. proteksi hapus akun demo/admin; sengaja di luar cakupan.
+2. **Keputusan desain lanjutan** — mis. proteksi hapus akun demo/admin, refresh token reuse
+   detection, kolom snapshot tak terpakai; sengaja di luar cakupan.
+3. **`IAuthService` belum ada** — inkonsistensi kecil (service lain punya interface).
 
 ### Immediate Priority
 
-Memperbaiki **semantik status code untuk id tidak valid (404 → 400)** sekaligus mengamankan
-`GetUserIdFromClaims` dengan `TryParse` — latihan kecil yang menutup gap HTTP/REST terakhir.
+Merapikan **duplikasi validasi manual Name/Email/Password** — latihan DRY kecil yang menutup
+konsistensi validasi sepenuhnya.
 
 ### Next Task
 
-**Perbaiki semantik status code untuk id tidak valid (404 → 400)**
+**Rapikan duplikasi validasi manual Name/Email/Password**
 (lihat bagian 🎯 NEXT TASK di atas).
 
 ### After That
 
-Setelah NEXT TASK selesai, roadmap inti selesai. Latihan lanjutan yang masuk akal:
-rapikan duplikasi validasi manual, jalankan analisis coverage (`coverage.runsettings`),
-atau eksplorasi rate limiting (sudah tercantum sebagai "Next phase" di README).
+Roadmap inti selesai. Latihan lanjutan yang masuk akal: tambah `IAuthService` untuk konsistensi,
+jalankan analisis coverage (`coverage.runsettings`), atau eksplorasi rate limiting
+(sudah tercantum sebagai "Next phase" di README).

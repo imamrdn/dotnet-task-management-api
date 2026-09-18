@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TaskManagement.Api.Data;
 using TaskManagement.Api.DTOs;
-using TaskManagement.Api.Extensions;
 using TaskManagement.Api.Models;
 
 namespace TaskManagement.Api.Services;
@@ -29,7 +28,6 @@ public class TaskService : ITaskService
     {
         IQueryable<TaskItem> query = _dbContext.Tasks
             .AsNoTracking()
-            .WhereActive()
             .Where(task => task.UserId == userId);
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -90,7 +88,6 @@ public class TaskService : ITaskService
     {
         var tasks = await _dbContext.Tasks
             .AsNoTracking()
-            .WhereActive()
             .Include(task => task.User)
             .OrderBy(task => task.Id)
             .ToListAsync(cancellationToken);
@@ -115,7 +112,6 @@ public class TaskService : ITaskService
     {
         var query = _dbContext.Tasks
             .AsNoTracking()
-            .WhereActive()
             .GroupBy(task => new
             {
                 task.UserId,
@@ -147,7 +143,6 @@ public class TaskService : ITaskService
     {
         return await _dbContext.Tasks
             .AsNoTracking()
-            .WhereActive()
             .GroupBy(task => new
             {
                 task.UserId,
@@ -173,7 +168,6 @@ public class TaskService : ITaskService
     {
         var task = await _dbContext.Tasks
             .AsNoTracking()
-            .WhereActive()
             .FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId, cancellationToken);
         if (task is null)
         {
@@ -231,7 +225,6 @@ public class TaskService : ITaskService
         CancellationToken cancellationToken = default)
     {
         var task = await _dbContext.Tasks
-            .WhereActive()
             .FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId, cancellationToken);
         if (task is null)
         {
@@ -261,7 +254,6 @@ public class TaskService : ITaskService
         CancellationToken cancellationToken = default)
     {
         var task = await _dbContext.Tasks
-            .WhereActive()
             .FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId, cancellationToken);
         if (task is null)
         {
@@ -289,7 +281,6 @@ public class TaskService : ITaskService
     {
         var taskExists = await _dbContext.Tasks
             .AsNoTracking()
-            .WhereActive()
             .AnyAsync(task => task.Id == id && task.UserId == userId, cancellationToken);
         if (!taskExists)
         {
@@ -314,7 +305,6 @@ public class TaskService : ITaskService
         CancellationToken cancellationToken = default)
     {
         var task = await _dbContext.Tasks
-            .WhereActive()
             .Include(task => task.TaskCategories)
             .FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId, cancellationToken);
         if (task is null)
@@ -358,7 +348,6 @@ public class TaskService : ITaskService
         CancellationToken cancellationToken = default)
     {
         var task = await _dbContext.Tasks
-            .WhereActive()
             .FirstOrDefaultAsync(task => task.Id == id && task.UserId == userId, cancellationToken);
         if (task is null)
         {

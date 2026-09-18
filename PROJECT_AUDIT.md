@@ -370,7 +370,7 @@ untuk kasus "konflik data".
 **Resolution:** Sudah diganti ke pencocokan berdasarkan tipe `DuplicateResourceException`
 (kondisi string dihapus). Lihat Must Fix #1.
 
-#### 2. Soft delete bergantung pada pemanggilan manual `WhereActive()` di setiap query
+#### 2. Soft delete bergantung pada pemanggilan manual `WhereActive()` di setiap query — ✅ SUDAH DIPERBAIKI
 
 **Issue:** Tidak ada **global query filter**. Setiap query harus ingat menambahkan `.WhereActive()`.
 Bukti risiko: `UserService.GetUsersWithoutActiveTasksAsync` menulis ulang kondisi
@@ -381,6 +381,11 @@ tersebar di beberapa tempat.
 muncul lagi — bug yang sulit terdeteksi.
 **Suggested direction:** Pelajari **EF Core global query filters** (`HasQueryFilter`) di `AppDbContext`
 untuk task yang soft-deleted, sehingga filter otomatis berlaku.
+**Resolution:** Sudah ditambahkan global query filter di `AppDbContext`
+(`modelBuilder.Entity<TaskItem>().HasQueryFilter(task => !task.IsDeleted)`), plus filter pencocokan
+pada `TaskCategory` (`HasQueryFilter(tc => !tc.TaskItem.IsDeleted)`) sesuai rekomendasi EF Core untuk
+relasi required. Semua pemanggilan `.WhereActive()` manual dihapus, dan kondisi `!task.IsDeleted`
+manual di `UserService` disederhanakan. Diuji di `Tests/Data/SoftDeleteQueryFilterTests.cs`.
 
 #### 3. Duplikasi logika hashing password
 
@@ -635,7 +640,11 @@ sampai ke service. Ini juga menutup potensi `NullReferenceException` dari `Categ
 
 ---
 
-### Step 3 — Konsistenkan soft delete dengan global query filter (EF Core)
+### Step 3 — Konsistenkan soft delete dengan global query filter (EF Core) — ✅ SELESAI
+
+> **Status: DONE.** Step ini sudah dikerjakan. Semua Definition of Done di bawah sudah terpenuhi
+> dan `dotnet test` hijau (136 test). Tidak ada perubahan skema database (global query filter
+> bukan bagian dari schema), sehingga **tidak perlu migration**.
 
 **Goal**
 Membuat filter task yang sudah dihapus berlaku otomatis, tanpa harus memanggil `WhereActive()`
@@ -649,17 +658,19 @@ Ini kesempatan belajar fitur EF Core yang penting dan mengurangi risiko bug di m
 - EF Core **global query filters** (`HasQueryFilter`)
 - Cara mengabaikan filter saat memang perlu (`IgnoreQueryFilters`)
 - Trade-off filter otomatis
+- Peringatan EF Core saat entity ber-filter berada di relasi **required** (perlu filter pencocokan)
 
 **Likely Files**
 `TaskManagement.Api/Data/AppDbContext.cs`,
 `TaskManagement.Api/Extensions/TaskQueryExtensions.cs`,
 `TaskManagement.Api/Services/TaskService.cs`,
-`TaskManagement.Api/Services/UserService.cs`
+`TaskManagement.Api/Services/UserService.cs`,
+`TaskManagement.Api.Tests/Data/SoftDeleteQueryFilterTests.cs` (baru)
 
 **Definition of Done**
-- [ ] Query task yang sudah dihapus tidak perlu lagi menambahkan `.WhereActive()` manual.
-- [ ] Semua test lama tetap hijau (termasuk yang menguji task soft-deleted).
-- [ ] Perilaku endpoint tidak berubah dari sudut pandang API.
+- [x] Query task yang sudah dihapus tidak perlu lagi menambahkan `.WhereActive()` manual.
+- [x] Semua test lama tetap hijau (termasuk yang menguji task soft-deleted).
+- [x] Perilaku endpoint tidak berubah dari sudut pandang API.
 
 **Difficulty:** Medium
 
@@ -752,87 +763,95 @@ Terakhir, supaya semua perbaikan "terkunci" oleh test. Ini melatih disiplin test
 
 ## 🎯 NEXT TASK
 
-> Catatan: task sebelumnya (Step 1 — pemetaan exception, dan Step 2 — validasi) **sudah selesai**.
-> Berikut adalah task berikutnya yang paling masuk akal.
+> Catatan: task sebelumnya (Step 1 — pemetaan exception, Step 2 — validasi, Step 3 — global query
+> filter soft delete) **sudah selesai**. Berikut adalah task berikutnya yang paling masuk akal.
 
-# Konsistenkan soft delete dengan EF Core global query filter
+# Putuskan kebijakan hapus user & relasinya (cascade vs soft delete)
 
 ## Objective
 
-Membuat filter "task yang sudah dihapus tidak muncul" berlaku **otomatis** lewat
-EF Core **global query filter** (`HasQueryFilter`) di `AppDbContext`, sehingga setiap query
-tidak perlu lagi memanggil `.WhereActive()` secara manual.
+Menghilangkan risiko kehilangan data permanen saat user dihapus, dan menyelaraskan perilaku
+`DELETE /api/users/{id}` dengan model **soft delete** yang sudah dipakai untuk task.
+Saat ini `UserService.DeleteUserAsync` memakai `_dbContext.Users.Remove(user)` (hard delete),
+dan relasi `User → Tasks` memakai cascade delete, sehingga menghapus user ikut menghapus
+**semua task miliknya secara permanen**.
 
 ## Why This Task
 
-- Model soft delete sudah ada (`TaskItem.IsDeleted` + `DeletedAt`), tetapi penerapannya
-  bergantung pada pemanggilan manual `WhereActive()` di setiap query
-  (`Extensions/TaskQueryExtensions.cs`). Satu query baru yang lupa memanggilnya bisa
-  memunculkan task yang sudah dihapus — bug yang sulit terdeteksi.
-- Bukti risiko sudah ada: `UserService.GetUsersWithoutActiveTasksAsync` menulis ulang
-  kondisi `!task.IsDeleted` secara manual (`Services/UserService.cs` baris 37–39).
-- Ini melatih fitur EF Core yang penting dan relevan langsung dengan struktur project,
-  bukan konsep advanced yang dipaksakan.
+- Ini risiko **kehilangan data** nyata: satu request `DELETE /api/users/{id}` menghapus user
+  **dan** semua task-nya tanpa jejak (tidak ada `DeletedAt`), padahal task sendiri memakai
+  model soft delete (`TaskItem.IsDeleted`). Jadi ada inkonsistensi kebijakan.
+- Bergantung pada Step 3: setelah soft delete konsisten lewat global query filter, kebijakan
+  untuk user bisa dibuat selaras dan diuji dengan cara yang sama.
+- Melatih pemahaman relasi & `DeleteBehavior` di EF Core, serta konsekuensi operasi delete berantai —
+  konsep fundamental yang sering jadi sumber bug di aplikasi nyata.
 
 ## Files To Study First
 
-1. `TaskManagement.Api/Data/AppDbContext.cs` — tempat menambahkan `HasQueryFilter`.
-2. `TaskManagement.Api/Extensions/TaskQueryExtensions.cs` — extension `WhereActive()` yang
-   saat ini dipakai manual.
-3. `TaskManagement.Api/Services/TaskService.cs` — semua query task yang memakai `WhereActive()`.
-4. `TaskManagement.Api/Services/UserService.cs` — query yang menulis ulang `!task.IsDeleted`.
-5. `TaskManagement.Api.Tests/Services/TaskServiceTests.cs` — test soft delete yang sudah ada
-   (jadikan acuan agar tidak ada regresi).
+1. `TaskManagement.Api/Services/UserService.cs` — method `DeleteUserAsync` (hard delete saat ini).
+2. `TaskManagement.Api/Data/AppDbContext.cs` — relasi `User → Tasks` dan global query filter
+   yang baru ditambahkan (Step 3).
+3. `TaskManagement.Api/Models/User.cs` — entity user (belum punya `IsDeleted`/`DeletedAt`).
+4. `TaskManagement.Api/Models/TaskItem.cs` — bandingkan pola soft delete task.
+5. `TaskManagement.Api/Migrations/20260912143356_AddUserTaskRelationship.cs` — bukti `onDelete: Cascade`.
+6. `TaskManagement.Api.Tests/Services/UserServiceTests.cs` — test delete user yang sudah ada.
 
 ## Concepts To Understand
 
-- **EF Core global query filter** (`modelBuilder.Entity<T>().HasQueryFilter(...)`).
-- Cara **mengabaikan** filter saat memang perlu melihat data terhapus (`IgnoreQueryFilters()`).
-- Konsekuensi: filter berlaku untuk semua query, termasuk yang dipakai `Include`/`Any`.
-- Perbedaan "filter otomatis" vs "filter manual di tiap query".
+- **EF Core `DeleteBehavior`**: `Cascade`, `Restrict`, `SetNull`, `ClientCascade`.
+- Konsep **soft delete pada entity induk** (user) dan bagaimana ia berinteraksi dengan
+  global query filter untuk task.
+- Perbedaan **hard delete** vs **soft delete**, dan kapan masing-masing pantas dipakai.
+- Dampak perubahan relasi terhadap **migration** (kali ini kemungkinan perlu migration karena
+  skema relasi/kolom berubah).
 
 ## Implementation Direction
 
 Jangan langsung menulis kode lengkap — lakukan bertahap:
 
-1. **Pelajari** dulu bagaimana `WhereActive()` dipakai di seluruh service (cari pemakaiannya),
-   lalu pahami bahwa itu adalah filter yang sama yang diulang-ulang.
-2. **Tambahkan** global query filter untuk `TaskItem` di `AppDbContext.OnModelCreating`
-   (mis. `HasQueryFilter(task => !task.IsDeleted)`).
-3. **Hapus atau sederhanakan** pemanggilan `.WhereActive()` yang menjadi redundan setelah filter
-   otomatis aktif. Pikirkan apakah `WhereActive()` masih perlu dipertahankan sebagai helper
-   atau dihapus sepenuhnya.
-4. **Handle** kasus yang butuh melihat task terhapus (kalau ada). Jika tidak ada, cukup pastikan
-   tidak ada tempat yang bergantung pada perilaku lama.
-5. **Test** dengan menjalankan semua test lama (khususnya test soft delete) dan tambahkan test
-   yang membuktikan query baru otomatis mengabaikan task terhapus.
+1. **Pelajari** dulu alur `DELETE /api/users/{id}`: dari `UsersController.DeleteUser` →
+   `UserService.DeleteUserAsync` → `Remove` + `SaveChangesAsync`, lalu pahami efek cascade-nya.
+2. **Putuskan kebijakan** dan tulis alasannya. Dua opsi yang masuk akal:
+   - (a) **Soft delete user**: tambahkan `IsDeleted`/`DeletedAt` pada `User`, ubah `DeleteUserAsync`
+     menjadi menandai terhapus, dan tambahkan global query filter untuk `User` (plus penyesuaian
+     filter task agar task milik user terhapus ikut tersembunyi).
+   - (b) **Larang hapus jika masih punya task aktif**: kembalikan error (mis. 400/409) saat user
+     masih memiliki task, tanpa mengubah skema.
+   Pilih salah satu — jangan campur setengah-setengah.
+3. **Terapkan** kebijakan tadi di `UserService` (dan `AppDbContext` bila skema berubah).
+4. **Handle** konsistensi: pastikan menghapus user tidak lagi menghapus task secara tak terduga,
+   dan endpoint tetap mengembalikan status code yang benar.
+5. **Buat migration** jika skema berubah (mis. kolom `IsDeleted` pada `users` atau perubahan
+   `DeleteBehavior`), lalu **test** semua skenario (lihat How To Verify).
 
 ## Expected Behavior
 
-Setelah selesai:
+Setelah selesai (asumsi memilih soft delete user):
 
-- `GET /api/tasks`, `GET /api/tasks/{id}`, dan endpoint admin **tidak menampilkan** task yang
-  sudah di-soft-delete — tanpa perlu `WhereActive()` eksplisit di setiap query.
-- Perilaku API dari sudut pandang klien **tidak berubah** (semua test lama tetap hijau).
-- Tidak ada lagi duplikasi kondisi `!task.IsDeleted` yang tersebar di beberapa tempat.
+- `DELETE /api/users/{id}` → user tidak lagi hilang permanen; task-nya tidak terhapus permanen.
+- `GET /api/users` dan `GET /api/users/{id}` tidak menampilkan user yang sudah dihapus.
+- Perilaku endpoint task tetap konsisten (task milik user terhapus tidak muncul di daftar umum).
+- Semua test lama tetap hijau, plus test baru untuk kebijakan yang dipilih.
 
 ## How To Verify
 
-Jalankan `dotnet test TaskManagement.slnx` — semua test lama harus tetap hijau.
-Untuk verifikasi manual:
+Jalankan API, login sebagai admin, lalu uji:
 
-1. **Soft delete tetap bekerja:**
-   - Login sebagai user, buat task, lalu `DELETE /api/tasks/{id}`.
-   - `GET /api/tasks/{id}` → **404**; task tidak muncul di `GET /api/tasks`.
+1. **Hapus user yang punya task:**
+   - Buat user baru + task untuknya, lalu `DELETE /api/users/{id}`.
+   - Harapkan: sesuai kebijakan — user (dan task-nya) tidak hilang permanen, atau request ditolak
+     dengan pesan yang jelas. **Bukan** lagi menghapus semua task tanpa jejak.
 
-2. **Query lintas-user (admin) tetap bersih:**
-   - Sebagai admin, `GET /api/tasks/admin/all` → task yang sudah dihapus tidak muncul.
+2. **User terhapus tidak muncul:**
+   - `GET /api/users` → user yang dihapus tidak ada.
 
-3. **Automated test:**
-   - Tambahkan test yang membuktikan query tanpa `WhereActive()` tetap mengecualikan task
-     terhapus (mis. panggil langsung `_dbContext.Tasks.ToListAsync()` lalu pastikan task
-     terhapus tidak ikut).
-   - `dotnet test` harus hijau.
+3. **Database tetap sehat:**
+   - Pastikan tidak ada foreign key error / data yatim (orphan) setelah operasi delete.
+
+4. **Automated test:**
+   - Tambahkan test untuk kebijakan yang dipilih (mis. user yang dihapus tidak muncul;
+     task miliknya tidak hilang permanen; atau request ditolak jika masih ada task).
+   - `dotnet test TaskManagement.slnx` harus hijau.
 
 ---
 
@@ -845,40 +864,43 @@ PostgreSQL + EF Core (25 migration), JWT authentication **plus refresh token rot
 authorization, soft delete task, relasi many-to-many (task↔category), profil user one-to-one,
 demo seeding, health check, OpenAPI, CORS per-environment, CI GitHub Actions, serta **test unit dan
 integration yang luas**. Arsitekturnya rapi: **Controller → Service → DbContext → PostgreSQL**, tanpa
-over-engineering. Tidak ditemukan TODO/FIXME. Dua area sudah dibereskan: bug kategori duplikat → 500
-(Step 1) dan validasi yang hilang (Step 2). Beberapa area lain masih perlu dirapikan
-(soft delete, kebijakan hapus user, konsistensi async). Test suite saat ini **133 test hijau**.
+over-engineering. Tidak ditemukan TODO/FIXME. Tiga area sudah dibereskan: bug kategori duplikat → 500
+(Step 1), validasi yang hilang (Step 2), dan soft delete kini otomatis lewat EF Core global query
+filter (Step 3). Beberapa area lain masih perlu dirapikan (kebijakan hapus user, konsistensi async,
+duplikasi password hashing). Test suite saat ini **136 test hijau**.
 
 ### What I Have Practiced
 
 Yang sudah jelas terpakai: C# modern (record, pattern matching, nullable), OOP & interface,
 Dependency Injection (constructor injection + lifetime), ASP.NET Core (middleware pipeline, controllers,
-health checks, OpenAPI), REST API, EF Core (migrations, relasi, index, projection, soft delete),
-LINQ, DTO terpisah dari entity, async/await, logging terstruktur, configuration per-environment,
-authentication (JWT + refresh token), authorization (policy & role), unit testing (xUnit + Moq),
-dan integration testing (WebApplicationFactory + PostgreSQL nyata).
+health checks, OpenAPI), REST API, EF Core (migrations, relasi, index, projection, soft delete,
+**global query filters**), LINQ, DTO terpisah dari entity, async/await, logging terstruktur,
+configuration per-environment, authentication (JWT + refresh token), authorization (policy & role),
+unit testing (xUnit + Moq), dan integration testing (WebApplicationFactory + PostgreSQL nyata).
 Selain itu, baru dipraktikkan: **custom exception + pemetaan exception berbasis tipe** (Step 1),
-serta **validasi DataAnnotations lanjutan & validasi query parameter** termasuk batas atas pagination (Step 2).
+**validasi DataAnnotations lanjutan & validasi query parameter** (Step 2), serta
+**EF Core global query filter untuk soft delete** (Step 3).
 
 ### Biggest Gaps
 
 1. **Semantik HTTP/REST** — id tidak valid masih mengembalikan 404 (seharusnya 400).
-2. **Soft delete manual** — belum memakai EF Core global query filter, rawan lupa di query baru.
-3. **Kebijakan hapus user** — hard delete dengan cascade ke task, tidak konsisten dengan soft delete task.
-4. **Konsistensi async** — `UserService` belum menerima `CancellationToken` seperti service lain.
-5. **Duplikasi password hashing** — `PasswordHasher<User>` dibuat manual (`new`) di beberapa tempat.
+2. **Kebijakan hapus user** — hard delete dengan cascade ke task, tidak konsisten dengan soft delete task.
+3. **Konsistensi async** — `UserService` belum menerima `CancellationToken` seperti service lain.
+4. **Duplikasi password hashing** — `PasswordHasher<User>` dibuat manual (`new`) di beberapa tempat.
+5. **Kode tak terpakai** — `Extensions/TaskQueryExtensions.cs` (`WhereActive()`) kini tidak dipakai lagi
+   setelah Step 3; kandidat dibersihkan.
 
 ### Immediate Priority
 
-Menerapkan **EF Core global query filter** untuk soft delete, agar aturan "task terhapus tidak muncul"
-berlaku otomatis dan tidak lagi bergantung pada pemanggilan `WhereActive()` manual di setiap query.
+Memutuskan **kebijakan hapus user & relasinya**, karena saat ini `DELETE /api/users/{id}` menghapus
+user beserta seluruh task-nya secara permanen (cascade hard delete) — risiko kehilangan data dan
+tidak konsisten dengan soft delete task.
 
 ### Next Task
 
-**Konsistenkan soft delete dengan EF Core global query filter** (lihat bagian 🎯 NEXT TASK di atas).
+**Putuskan kebijakan hapus user & relasinya (cascade vs soft delete)** (lihat bagian 🎯 NEXT TASK di atas).
 
 ### After That
 
-Setelah NEXT TASK selesai, lanjutkan ke **Step 4** (kebijakan hapus user & cascade),
-**Step 5** (rapikan `CancellationToken` + duplikasi password hashing), dan tutup dengan
-**Step 6** (regression test).
+Setelah NEXT TASK selesai, lanjutkan ke **Step 5** (rapikan `CancellationToken` + duplikasi password
+hashing), bersihkan kode tak terpakai (`WhereActive()`), dan tutup dengan **Step 6** (regression test).

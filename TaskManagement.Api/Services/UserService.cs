@@ -35,9 +35,7 @@ public class UserService : IUserService
     {
         return await _dbContext.Users
             .AsNoTracking()
-            .Where(user => !_dbContext.Tasks.Any(task =>
-                task.UserId == user.Id &&
-                !task.IsDeleted))
+            .Where(user => !_dbContext.Tasks.Any(task => task.UserId == user.Id))
             .OrderBy(user => user.Id)
             .Select(user => new UserResponse(
                 user.Id,

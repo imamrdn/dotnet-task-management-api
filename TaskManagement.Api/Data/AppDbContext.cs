@@ -48,6 +48,11 @@ public class AppDbContext : DbContext
             .WithMany(u => u.Tasks)
             .HasForeignKey(t => t.UserId);
 
+        // Global query filter: soft-deleted tasks are excluded automatically from every query.
+        // This replaces the manual .WhereActive() calls that were easy to forget.
+        modelBuilder.Entity<TaskItem>()
+            .HasQueryFilter(task => !task.IsDeleted);
+
         modelBuilder.Entity<Category>()
             .HasIndex(category => category.Name)
             .IsUnique();
@@ -63,6 +68,12 @@ public class AppDbContext : DbContext
             .HasOne(taskCategory => taskCategory.TaskItem)
             .WithMany(task => task.TaskCategories)
             .HasForeignKey(taskCategory => taskCategory.TaskItemId);
+
+        // Matching query filter for TaskCategory: EF Core recommends filtering both ends of a
+        // required relationship when one side has a global query filter, so category links of
+        // soft-deleted tasks are excluded consistently as well.
+        modelBuilder.Entity<TaskCategory>()
+            .HasQueryFilter(taskCategory => !taskCategory.TaskItem.IsDeleted);
 
         modelBuilder.Entity<TaskCategory>()
             .HasOne(taskCategory => taskCategory.Category)

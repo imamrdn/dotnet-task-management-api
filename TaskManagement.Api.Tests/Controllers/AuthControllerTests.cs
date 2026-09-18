@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using TaskManagement.Api.Controllers;
 using TaskManagement.Api.DTOs;
 using TaskManagement.Api.Errors;
@@ -12,6 +13,23 @@ namespace TaskManagement.Api.Tests.Controllers;
 
 public class AuthControllerTests
 {
+    [Fact]
+    public async Task Login_WithMockedService_ReturnsServiceResponse()
+    {
+        // Proves the controller depends on the IAuthService abstraction and can be
+        // tested without a database, hasher, or configuration.
+        var authResponse = new AuthResponse("access-token", "refresh-token");
+        var service = new Mock<IAuthService>();
+        service.Setup(s => s.LoginAsync(It.IsAny<LoginRequest>())).ReturnsAsync(authResponse);
+        var controller = new AuthController(service.Object);
+
+        var result = await controller.Login(new LoginRequest("user@mail.com", "secret123"));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.Same(authResponse, Assert.IsType<ApiResponse<AuthResponse>>(ok.Value).Data);
+        service.Verify(s => s.LoginAsync(It.IsAny<LoginRequest>()), Times.Once);
+    }
+
     [Fact]
     public async Task Register_ReturnsOkForValidRequest()
     {

@@ -13,7 +13,7 @@ using TaskManagement.Api.Validation;
 
 namespace TaskManagement.Api.Services;
 
-public class AuthService
+public class AuthService : IAuthService
 {
     private readonly AppDbContext _dbContext;
     private readonly IConfiguration _configuration;

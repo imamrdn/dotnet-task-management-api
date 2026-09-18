@@ -416,12 +416,16 @@ manual di `UserService` disederhanakan. Diuji di `Tests/Data/SoftDeleteQueryFilt
 `Program.cs`; `AuthService`, `UserService`, dan `UserSeeder` kini menerima via constructor injection.
 Tidak ada lagi `new PasswordHasher` di project API (lihat Step 5).
 
-#### 4. `AuthService` tidak punya interface, service lain punya
+#### 4. `AuthService` tidak punya interface, service lain punya — ✅ SUDAH DIPERBAIKI
 
 **Issue:** `ITaskService`, `IUserService`, `ICategoryService` ada, tapi `AuthService` tidak punya `IAuthService`.
 **Location:** `Services/AuthService.cs` vs `Services/ITaskService.cs` dll.
 **Why it matters:** Inkonsistensi pola; controller `AuthController` meng-`new`-kan lewat DI class konkret.
 **Suggested direction:** Pilih satu konvensi. Untuk konsistensi, tambahkan `IAuthService`.
+**Resolution:** Dibuat `Services/IAuthService.cs`; `AuthService` mengimplementasikannya;
+`AuthController` bergantung pada `IAuthService`; registrasi DI menjadi
+`AddScoped<IAuthService, AuthService>()`. Ditambah test `AuthControllerTests` yang memakai
+`Mock<IAuthService>` — membuktikan controller bisa diuji tanpa database (manfaat konkret interface).
 
 #### 5. Validasi id `id <= 0` mengembalikan 404, bukan 400 — ✅ SUDAH DIPERBAIKI
 
@@ -836,68 +840,68 @@ Terakhir, supaya semua perbaikan "terkunci" oleh test. Ini melatih disiplin test
 
 ## 🎯 NEXT TASK
 
-> Catatan: Step 1–5, task semantik 400 vs 404, standarisasi controller (`Reply`),
-> dan task duplikasi validasi **sudah selesai**. Berikut task lanjutan dari sisa temuan audit.
+> Catatan: Step 1–5, semantik 400 vs 404, standarisasi controller (`Reply`),
+> penyatuan validasi (`RequestValidation`), dan `IAuthService` **sudah selesai**.
+> Berikut task lanjutan dari sisa temuan audit.
 
-# Tambahkan `IAuthService` untuk konsistensi dengan service lain
+# Jalankan analisis code coverage & tutup celahnya
 
 ## Objective
 
-Menambahkan interface `IAuthService` untuk `AuthService`, lalu mendaftarkan & meng-inject-nya
-lewat interface (bukan class konkret), sehingga pola service di project ini seragam
-(`ITaskService`, `IUserService`, `ICategoryService`, `IAuthService`).
+Menjalankan test dengan pengumpulan coverage memakai `coverage.runsettings` yang sudah ada,
+mengidentifikasi area yang belum ter-cover (khususnya kode yang baru diubah di Step 1–5),
+lalu menambahkan test untuk celah terpenting.
 
 ## Why This Task
 
-- Ini inkonsistensi kecil yang tersisa (Should Improve #4): tiga service punya interface,
-  `AuthService` tidak. `AuthController` bergantung pada class konkret.
-- Melatih **pemrograman ke interface (program to an abstraction)** dan registrasi DI
-  `AddScoped<IAuthService, AuthService>()` — konsep fundamental yang berguna.
-- Kecil, terisolasi, dan tidak mengubah perilaku API.
+- Ini sisa terakhir **Step 6** di roadmap ("coverage kategori/error terpantau"). Semua
+  perbaikan sudah dikunci test, tetapi belum pernah diukur berapa besar cakupannya.
+- Setelah banyak perubahan (exception handler, global query filter, kebijakan delete,
+  `Reply`, `RequestValidation`), ada gunanya memverifikasi tidak ada jalur logika yang
+  luput — terutama `ApiExceptionHandler` (banyak cabang) dan `UserService` (kondisi delete).
+- Melatih membaca laporan coverage dan membedakan "kode belum diuji" dari "kode memang
+  tidak perlu diuji" — keterampilan praktis, bukan konsep advanced.
 
 ## Files To Study First
 
-1. `TaskManagement.Api/Services/ITaskService.cs` + `TaskService.cs` — acuan pola interface.
-2. `TaskManagement.Api/Services/AuthService.cs` — class yang akan diberi interface.
-3. `TaskManagement.Api/Controllers/AuthController.cs` — pemakai `AuthService` (ganti ke interface).
-4. `TaskManagement.Api/Program.cs` — tempat registrasi `AddScoped<AuthService>()`.
-5. `TaskManagement.Api.Tests/Controllers/AuthControllerTests.cs` + `Services/AuthServiceTests.cs` —
-   titik konstruksi langsung yang mungkin perlu disesuaikan.
+1. `coverage.runsettings` — konfigurasi collector & exclude (Migrations, Program.cs, obj).
+2. `TaskManagement.Api/Errors/ApiExceptionHandler.cs` — banyak cabang `switch` (kandidat celah).
+3. `TaskManagement.Api/Services/UserService.cs` — kondisi delete/validasi (kandidat celah).
+4. `TaskManagement.Api.Tests/` — peta test yang sudah ada.
+5. `.github/workflows/ci.yml` — cara test dijalankan di CI (coverage belum dikumpulkan di sana).
 
 ## Concepts To Understand
 
-- **Program to an abstraction**: kenapa controller sebaiknya bergantung pada interface.
-- **DI registration** untuk interface + implementasi.
-- Trade-off: interface menambah satu file; nilainya adalah konsistensi + memudahkan
-  test/mocking bila suatu saat `AuthController` diuji dengan Moq.
+- **Code coverage**: apa yang diukur (line vs branch) dan kenapa 100% bukan tujuan.
+- **Collector `coverlet`** + format `cobertura` (lihat `coverage.runsettings`).
+- Membaca laporan dan memilih celah yang **bermakna** (bukan mengejar angka).
 
 ## Implementation Direction
 
-1. **Pelajari** bentuk `ITaskService` (hanya deklarasi method) dan bandingkan dengan
-   method publik `AuthService` (`RegisterAsync`, `LoginAsync`, `RefreshAsync`, `LogoutAsync`).
-2. **Buat** `IAuthService` dengan tanda tangan method yang sama.
-3. **Terapkan** interface pada `AuthService` (`: IAuthService`).
-4. **Ubah** `AuthController` agar bergantung pada `IAuthService`, dan perbarui
-   registrasi di `Program.cs` menjadi `AddScoped<IAuthService, AuthService>()`.
-5. **Handle** test yang meng-`new AuthService(...)` / `new AuthController(...)` bila perlu.
-6. **Test**: `dotnet test` harus hijau tanpa perubahan perilaku.
+1. **Jalankan** test dengan coverage:
+   `dotnet test TaskManagement.slnx --collect:"XPlat Code Coverage" --settings coverage.runsettings`.
+2. **Buka** file `coverage.cobertura.xml` yang dihasilkan (folder `TestResults/`) dan lihat
+   persentase per class — fokus ke `ApiExceptionHandler`, `UserService`, `TaskService`.
+3. **Identifikasi** cabang/baris yang belum ter-cover dan nilai apakah itu jalur penting.
+4. **Tambahkan** test hanya untuk celah yang bermakna (mis. cabang `OperationCanceledException`
+   di handler bila belum diuji).
+5. **Opsional**: pertimbangkan menambahkan langkah coverage ke CI (`ci.yml`) — tapi jangan
+   ubah CI bila belum yakin; cukup jalankan lokal dulu.
 
 ## Expected Behavior
 
 Setelah selesai:
 
-- Semua service punya interface; `AuthController` menerima `IAuthService`.
-- Perilaku endpoint auth **tidak berubah** (register/login/refresh/logout sama).
-- Semua test lama tetap hijau.
+- Ada laporan coverage yang bisa dibaca; tidak ada perubahan perilaku aplikasi.
+- Celah coverage penting sudah tertutup test baru.
+- Semua test tetap hijau.
 
 ## How To Verify
 
-1. **Pencarian kode:**
-   - `Program.cs` mendaftarkan `AddScoped<IAuthService, AuthService>()`.
-   - `AuthController` bergantung pada `IAuthService`, bukan `AuthService`.
-2. **Automated test:**
-   - `dotnet test TaskManagement.slnx` → semua hijau.
-3. **Manual via Bruno:** register + login tetap berhasil.
+1. **Jalankan** perintah coverage di atas; pastikan file `coverage.cobertura.xml` terbentuk.
+2. **Periksa** persentase class inti (handler & service) dan bandingkan sebelum/sesudah
+   test tambahan.
+3. `dotnet test TaskManagement.slnx` → semua hijau.
 
 ---
 
@@ -914,8 +918,9 @@ over-engineering. Tidak ditemukan TODO/FIXME. Semua area roadmap sudah dibereska
 duplikat → 500 (Step 1), validasi yang hilang (Step 2), soft delete otomatis via global query
 filter (Step 3), kebijakan hapus user yang aman (Step 4), konsistensi `CancellationToken` + DI
 password hashing (Step 5), semantik 400 vs 404 (task lanjutan), standarisasi response
-controller via extension method `Reply`, dan penyatuan validasi wajib Name/Email/Password.
-Test suite saat ini **160 test hijau**.
+controller via extension method `Reply`, penyatuan validasi wajib via validator generik
+`RequestValidation`, dan penambahan `IAuthService` agar semua service seragam.
+Test suite saat ini **161 test hijau**.
 
 ### What I Have Practiced
 
@@ -932,26 +937,25 @@ Selain itu, baru dipraktikkan: **custom exception + pemetaan exception berbasis 
 dengan Restrict + guard di service + migration FK** (Step 4), **mendaftarkan service
 framework (`IPasswordHasher<T>`) di DI + meneruskan `CancellationToken` end-to-end** (Step 5),
 serta **semantik 400 vs 404 + extension method untuk standarisasi response controller**,
-dan **menyatukan validasi wajib ke validator generik berbasis DataAnnotations (`RequestValidation`)**.
+**menyatukan validasi wajib ke validator generik berbasis DataAnnotations (`RequestValidation`)**,
+dan **`IAuthService` + dependensi controller pada abstraksi (diuji dengan `Mock<IAuthService>`)**.
 
 ### Biggest Gaps
 
-1. **`IAuthService` belum ada** — inkonsistensi kecil (service lain punya interface).
+1. **Coverage belum dianalisis menyeluruh** — `coverage.runsettings` sudah ada, tinggal dijalankan.
 2. **Keputusan desain lanjutan** — mis. proteksi hapus akun demo/admin, refresh token reuse
    detection, kolom snapshot tak terpakai; sengaja di luar cakupan.
-3. **Coverage belum dianalisis menyeluruh** — `coverage.runsettings` sudah ada, tinggal dijalankan.
+3. **CI belum mengumpulkan coverage** — `ci.yml` hanya menjalankan test, belum `--collect`.
 
 ### Immediate Priority
 
-Menambahkan **`IAuthService`** agar semua service konsisten bergantung pada interface —
-refactor kecil yang menutup inkonsistensi terakhir.
+Menjalankan **analisis code coverage** dan menutup celah bermakna — menuntaskan sisa Step 6.
 
 ### Next Task
 
-**Tambahkan `IAuthService` untuk konsistensi dengan service lain**
-(lihat bagian 🎯 NEXT TASK di atas).
+**Jalankan analisis code coverage & tutup celahnya** (lihat bagian 🎯 NEXT TASK di atas).
 
 ### After That
 
-Roadmap inti selesai. Latihan lanjutan yang masuk akal: jalankan analisis coverage
-(`coverage.runsettings`), atau eksplorasi rate limiting (tercantum sebagai "Next phase" di README).
+Roadmap inti selesai. Latihan lanjutan: tambahkan pengumpulan coverage ke CI (`ci.yml`),
+atau eksplorasi rate limiting (tercantum sebagai "Next phase" di README).

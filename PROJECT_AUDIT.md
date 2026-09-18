@@ -494,7 +494,7 @@ tidak menerimanya sama sekali.
 `CancellationToken cancellationToken = default` dan meneruskannya ke EF Core; `UsersController`
 juga menerima dan meneruskan token (lihat Step 5).
 
-#### 11. Duplikasi validasi manual yang berulang
+#### 11. Duplikasi validasi manual yang berulang — ✅ SUDAH DIPERBAIKI
 
 **Issue:** Validasi `string.IsNullOrWhiteSpace` untuk Name/Email/Password ditulis ulang di
 `AuthService` dan `UserService`.
@@ -502,6 +502,12 @@ juga menerima dan meneruskan token (lihat Step 5).
 **Why it matters:** Duplikasi logika validasi.
 **Suggested direction:** Pertimbangkan memindahkan validasi ke atribut DataAnnotations di DTO
 atau satu helper bersama.
+**Resolution:** Dibuat helper bersama `TaskManagement.Api/Validation/UserValidation.cs`
+(`RequireName`, `RequireEmail`, `RequirePassword`, `RequireNameAndEmail`) yang melempar
+`ArgumentException` dengan pesan yang sama. `AuthService` dan `UserService` kini memanggilnya;
+`ValidateUserRequest` lama di `UserService` dihapus. Pesan error tidak berubah (150 test lama
+tetap hijau tanpa dimodifikasi), plus ditambah `UserValidationTests`. Duplikasi `RefreshToken`
+dan cek konfigurasi JWT sengaja dibiarkan (konteks berbeda).
 
 #### 12. Format response kustom (`ApiResponse<T>`) alih-alih ProblemDetails
 
@@ -825,82 +831,68 @@ Terakhir, supaya semua perbaikan "terkunci" oleh test. Ini melatih disiplin test
 
 ## 🎯 NEXT TASK
 
-> Catatan: Step 1–5, task semantik 400 vs 404, dan standarisasi controller (`Reply`)
-> **sudah selesai**. Berikut task berikutnya dari sisa temuan audit.
+> Catatan: Step 1–5, task semantik 400 vs 404, standarisasi controller (`Reply`),
+> dan task duplikasi validasi **sudah selesai**. Berikut task lanjutan dari sisa temuan audit.
 
-# Rapikan duplikasi validasi manual Name/Email/Password
+# Tambahkan `IAuthService` untuk konsistensi dengan service lain
 
 ## Objective
 
-Menyatukan cek `string.IsNullOrWhiteSpace` untuk Name/Email/Password yang saat ini ditulis
-ulang di `AuthService` (register/login) dan `UserService` (create/update user), sehingga
-aturan "field wajib" hanya didefinisikan di **satu tempat**.
+Menambahkan interface `IAuthService` untuk `AuthService`, lalu mendaftarkan & meng-inject-nya
+lewat interface (bukan class konkret), sehingga pola service di project ini seragam
+(`ITaskService`, `IUserService`, `ICategoryService`, `IAuthService`).
 
 ## Why This Task
 
-- Sisa duplikasi yang paling jelas setelah Step 5: pesan dan aturan validasi yang sama
-  tersebar di dua service. Kalau suatu hari aturannya berubah (mis. password minimal 8 karakter),
-  harus diubah di banyak tempat dan rawan tidak konsisten.
-- Melatih DRY pada level validasi — kelanjutan natural dari Step 2 (DataAnnotations) dan
-  Step 5 (menghilangkan duplikasi hasher).
-- Kecil dan terisolasi: hanya menyentuh validasi input, tidak mengubah skema, auth flow,
-  atau status code.
+- Ini inkonsistensi kecil yang tersisa (Should Improve #4): tiga service punya interface,
+  `AuthService` tidak. `AuthController` bergantung pada class konkret.
+- Melatih **pemrograman ke interface (program to an abstraction)** dan registrasi DI
+  `AddScoped<IAuthService, AuthService>()` — konsep fundamental yang berguna.
+- Kecil, terisolasi, dan tidak mengubah perilaku API.
 
 ## Files To Study First
 
-1. `TaskManagement.Api/Services/AuthService.cs` — validasi Name/Email/Password di
-   `RegisterAsync` dan Email/Password di `LoginAsync`.
-2. `TaskManagement.Api/Services/UserService.cs` — `ValidateUserRequest` + cek Password
-   di `CreateUserAsync`.
-3. `TaskManagement.Api/DTOs/RegisterRequest.cs`, `CreateUserRequest.cs`, `LoginRequest.cs` —
-   DataAnnotations yang sudah ada (`[Required]`, `[EmailAddress]`); pahami kenapa validasi
-   manual di service masih ada (lapisan kedua untuk pemanggil non-HTTP/test langsung).
-4. `TaskManagement.Api/Errors/ApiExceptionHandler.cs` — `ArgumentException` → 400, jadi pesan
-   error dari helper bersama otomatis tetap 400.
+1. `TaskManagement.Api/Services/ITaskService.cs` + `TaskService.cs` — acuan pola interface.
+2. `TaskManagement.Api/Services/AuthService.cs` — class yang akan diberi interface.
+3. `TaskManagement.Api/Controllers/AuthController.cs` — pemakai `AuthService` (ganti ke interface).
+4. `TaskManagement.Api/Program.cs` — tempat registrasi `AddScoped<AuthService>()`.
+5. `TaskManagement.Api.Tests/Controllers/AuthControllerTests.cs` + `Services/AuthServiceTests.cs` —
+   titik konstruksi langsung yang mungkin perlu disesuaikan.
 
 ## Concepts To Understand
 
-- **DRY untuk validasi**: kapan logika boleh diduplikasi vs harus disatukan.
-- **Shared helper vs DataAnnotations**: DataAnnotations hanya jalan lewat model binding HTTP;
-  validasi di service melindungi pemanggil langsung (seperti unit test). Helper bersama
-  menutup keduanya tanpa duplikasi.
-- Menjaga **pesan error tetap sama** agar test dan klien tidak terdampak (refactor murni).
+- **Program to an abstraction**: kenapa controller sebaiknya bergantung pada interface.
+- **DI registration** untuk interface + implementasi.
+- Trade-off: interface menambah satu file; nilainya adalah konsistensi + memudahkan
+  test/mocking bila suatu saat `AuthController` diuji dengan Moq.
 
 ## Implementation Direction
 
-1. **Pelajari** semua cek manual Name/Email/Password di kedua service (cari dengan grep
-   `IsNullOrWhiteSpace`) dan catat pesan error masing-masing.
-2. **Pilih bentuk penyatuan.** Dua opsi masuk akal:
-   - (a) Satu static helper (mis. `UserValidation.RequireNameEmail(...)` /
-     `RequirePassword(...)`) yang melempar `ArgumentException` dengan pesan yang sama
-     seperti sekarang, dipanggil dari kedua service; atau
-   - (b) Pindahkan sepenuhnya ke DataAnnotations di DTO dan hapus cek manual yang
-     redundan — hanya bila yakin semua pemanggil lewat HTTP validation.
-   Opsi (a) lebih aman karena tidak mengubah perilaku pemanggil langsung.
-3. **Terapkan** pilihan tadi di `AuthService` dan `UserService`.
-4. **Handle** agar pesan error tidak berubah (test yang ada mengassert pesan seperti
-   "Name is required" — pastikan tetap hijau tanpa modifikasi).
-5. **Test**: `dotnet test` harus hijau tanpa mengubah test yang ada; tambah test kecil
-   untuk helper bila logikanya non-trivial.
+1. **Pelajari** bentuk `ITaskService` (hanya deklarasi method) dan bandingkan dengan
+   method publik `AuthService` (`RegisterAsync`, `LoginAsync`, `RefreshAsync`, `LogoutAsync`).
+2. **Buat** `IAuthService` dengan tanda tangan method yang sama.
+3. **Terapkan** interface pada `AuthService` (`: IAuthService`).
+4. **Ubah** `AuthController` agar bergantung pada `IAuthService`, dan perbarui
+   registrasi di `Program.cs` menjadi `AddScoped<IAuthService, AuthService>()`.
+5. **Handle** test yang meng-`new AuthService(...)` / `new AuthController(...)` bila perlu.
+6. **Test**: `dotnet test` harus hijau tanpa perubahan perilaku.
 
 ## Expected Behavior
 
 Setelah selesai:
 
-- Perilaku API **tidak berubah sama sekali** (pesan error dan status code identik).
-- Aturan "field wajib" hanya ada di satu tempat; mengubah pesan/aturan cukup sekali.
+- Semua service punya interface; `AuthController` menerima `IAuthService`.
+- Perilaku endpoint auth **tidak berubah** (register/login/refresh/logout sama).
 - Semua test lama tetap hijau.
 
 ## How To Verify
 
 1. **Pencarian kode:**
-   - Cari `IsNullOrWhiteSpace` di `Services/` → hanya muncul di helper bersama
-     (atau hilang sepenuhnya bila memilih opsi b).
+   - `Program.cs` mendaftarkan `AddScoped<IAuthService, AuthService>()`.
+   - `AuthController` bergantung pada `IAuthService`, bukan `AuthService`.
 2. **Automated test:**
-   - `dotnet test TaskManagement.slnx` → semua hijau **tanpa mengubah** test yang ada
-     (membuktikan pesan error tidak berubah).
-3. **Manual via Bruno/curl:**
-   - `POST /api/auth/register` dengan name kosong → **400** "Name is required" (sama seperti dulu).
+   - `dotnet test TaskManagement.slnx` → semua hijau.
+3. **Manual via Bruno:** register + login tetap berhasil.
 
 ---
 
@@ -916,8 +908,9 @@ integration yang luas**. Arsitekturnya rapi: **Controller → Service → DbCont
 over-engineering. Tidak ditemukan TODO/FIXME. Semua area roadmap sudah dibereskan: bug kategori
 duplikat → 500 (Step 1), validasi yang hilang (Step 2), soft delete otomatis via global query
 filter (Step 3), kebijakan hapus user yang aman (Step 4), konsistensi `CancellationToken` + DI
-password hashing (Step 5), semantik 400 vs 404 (task lanjutan), plus standarisasi response
-controller via extension method `Reply`. Test suite saat ini **150 test hijau**.
+password hashing (Step 5), semantik 400 vs 404 (task lanjutan), standarisasi response
+controller via extension method `Reply`, dan penyatuan validasi wajib Name/Email/Password.
+Test suite saat ini **161 test hijau**.
 
 ### What I Have Practiced
 
@@ -933,28 +926,27 @@ Selain itu, baru dipraktikkan: **custom exception + pemetaan exception berbasis 
 **EF Core global query filter untuk soft delete** (Step 3), **kebijakan delete yang aman
 dengan Restrict + guard di service + migration FK** (Step 4), **mendaftarkan service
 framework (`IPasswordHasher<T>`) di DI + meneruskan `CancellationToken` end-to-end** (Step 5),
-serta **semantik 400 vs 404 + extension method untuk standarisasi response controller**.
+serta **semantik 400 vs 404 + extension method untuk standarisasi response controller**,
+dan **menyatukan validasi wajib ke helper bersama (`UserValidation`)**.
 
 ### Biggest Gaps
 
-1. **Duplikasi validasi manual** — cek `IsNullOrWhiteSpace` Name/Email/Password tersebar
-   di `AuthService`/`UserService` (bisa disatukan via DataAnnotations/helper).
+1. **`IAuthService` belum ada** — inkonsistensi kecil (service lain punya interface).
 2. **Keputusan desain lanjutan** — mis. proteksi hapus akun demo/admin, refresh token reuse
    detection, kolom snapshot tak terpakai; sengaja di luar cakupan.
-3. **`IAuthService` belum ada** — inkonsistensi kecil (service lain punya interface).
+3. **Coverage belum dianalisis menyeluruh** — `coverage.runsettings` sudah ada, tinggal dijalankan.
 
 ### Immediate Priority
 
-Merapikan **duplikasi validasi manual Name/Email/Password** — latihan DRY kecil yang menutup
-konsistensi validasi sepenuhnya.
+Menambahkan **`IAuthService`** agar semua service konsisten bergantung pada interface —
+refactor kecil yang menutup inkonsistensi terakhir.
 
 ### Next Task
 
-**Rapikan duplikasi validasi manual Name/Email/Password**
+**Tambahkan `IAuthService` untuk konsistensi dengan service lain**
 (lihat bagian 🎯 NEXT TASK di atas).
 
 ### After That
 
-Roadmap inti selesai. Latihan lanjutan yang masuk akal: tambah `IAuthService` untuk konsistensi,
-jalankan analisis coverage (`coverage.runsettings`), atau eksplorasi rate limiting
-(sudah tercantum sebagai "Next phase" di README).
+Roadmap inti selesai. Latihan lanjutan yang masuk akal: jalankan analisis coverage
+(`coverage.runsettings`), atau eksplorasi rate limiting (tercantum sebagai "Next phase" di README).

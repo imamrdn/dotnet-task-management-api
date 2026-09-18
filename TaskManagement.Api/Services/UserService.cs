@@ -4,6 +4,7 @@ using TaskManagement.Api.Data;
 using TaskManagement.Api.DTOs;
 using TaskManagement.Api.Errors;
 using TaskManagement.Api.Models;
+using TaskManagement.Api.Validation;
 
 namespace TaskManagement.Api.Services;
 
@@ -117,12 +118,8 @@ public class UserService : IUserService
 
     public async Task<UserResponse> CreateUserAsync(CreateUserRequest request, CancellationToken cancellationToken = default)
     {
-        ValidateUserRequest(request.Name, request.Email);
-
-        if (string.IsNullOrWhiteSpace(request.Password))
-        {
-            throw new ArgumentException("Password is required");
-        }
+        UserValidation.RequireNameAndEmail(request.Name, request.Email);
+        UserValidation.RequirePassword(request.Password);
 
         var emailExists = await _dbContext.Users.AnyAsync(user => user.Email == request.Email, cancellationToken);
         if (emailExists)
@@ -147,7 +144,7 @@ public class UserService : IUserService
 
     public async Task<UserResponse?> UpdateUserAsync(int id, UpdateUserRequest request, CancellationToken cancellationToken = default)
     {
-        ValidateUserRequest(request.Name, request.Email);
+        UserValidation.RequireNameAndEmail(request.Name, request.Email);
 
         var user = await _dbContext.Users.FindAsync([id], cancellationToken);
         if (user is null)
@@ -202,18 +199,5 @@ public class UserService : IUserService
         _logger.LogInformation("User {UserId} deleted", id);
 
         return true;
-    }
-
-    private static void ValidateUserRequest(string name, string email)
-    {
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            throw new ArgumentException("Name is required");
-        }
-
-        if (string.IsNullOrWhiteSpace(email))
-        {
-            throw new ArgumentException("Email is required");
-        }
     }
 }

@@ -9,6 +9,7 @@ using TaskManagement.Api.Data;
 using TaskManagement.Api.DTOs;
 using TaskManagement.Api.Errors;
 using TaskManagement.Api.Models;
+using TaskManagement.Api.Validation;
 
 namespace TaskManagement.Api.Services;
 
@@ -29,20 +30,8 @@ public class AuthService
 
     public async Task RegisterAsync(RegisterRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            throw new ArgumentException("Name is required");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Email))
-        {
-            throw new ArgumentException("Email is required");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Password))
-        {
-            throw new ArgumentException("Password is required");
-        }
+        UserValidation.RequireNameAndEmail(request.Name, request.Email);
+        UserValidation.RequirePassword(request.Password);
 
         var emailExists = await _dbContext.Users.AnyAsync(u => u.Email == request.Email);
 
@@ -67,15 +56,8 @@ public class AuthService
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.Email))
-        {
-            throw new ArgumentException("Email is required");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Password))
-        {
-            throw new ArgumentException("Password is required");
-        }
+        UserValidation.RequireEmail(request.Email);
+        UserValidation.RequirePassword(request.Password);
 
         var user = await _dbContext.Users
             .FirstOrDefaultAsync(u => u.Email == request.Email);

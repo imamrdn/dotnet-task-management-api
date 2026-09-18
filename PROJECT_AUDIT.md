@@ -502,12 +502,17 @@ juga menerima dan meneruskan token (lihat Step 5).
 **Why it matters:** Duplikasi logika validasi.
 **Suggested direction:** Pertimbangkan memindahkan validasi ke atribut DataAnnotations di DTO
 atau satu helper bersama.
-**Resolution:** Dibuat helper bersama `TaskManagement.Api/Validation/UserValidation.cs`
-(`RequireName`, `RequireEmail`, `RequirePassword`, `RequireNameAndEmail`) yang melempar
-`ArgumentException` dengan pesan yang sama. `AuthService` dan `UserService` kini memanggilnya;
-`ValidateUserRequest` lama di `UserService` dihapus. Pesan error tidak berubah (150 test lama
-tetap hijau tanpa dimodifikasi), plus ditambah `UserValidationTests`. Duplikasi `RefreshToken`
-dan cek konfigurasi JWT sengaja dibiarkan (konteks berbeda).
+**Resolution:** Dibuat validator generik `TaskManagement.Api/Validation/RequestValidation.cs`
+(`EnsureValid(object request)`) yang memvalidasi DTO memakai **DataAnnotations yang sudah ada**
+(`[Required]`, `[EmailAddress]`) — jadi aturan & pesan tetap satu tempat di DTO, dan menambah
+field wajib baru cukup dengan menambah atribut, **tanpa method helper baru**.
+Catatan penting: pada positional record, atribut menempel di **constructor parameter**, bukan
+property, sehingga `Validator.TryValidateObject` saja tidak cukup — helper ini juga memvalidasi
+parameter konstruktor (temuan ini diverifikasi lewat test eksperimental).
+`AuthService` & `UserService` kini memanggil `RequestValidation.EnsureValid(request)`;
+`UserService.ValidateUserRequest` lama dihapus. Pesan error tidak berubah (test lama tetap hijau),
+plus `RequestValidationTests`. Pendekatan per-field (`UserValidation.RequireName/Email/Password`)
+sempat dicoba lalu **dibatalkan** karena kurang scalable (lihat riwayat commit).
 
 #### 12. Format response kustom (`ApiResponse<T>`) alih-alih ProblemDetails
 
@@ -910,7 +915,7 @@ duplikat → 500 (Step 1), validasi yang hilang (Step 2), soft delete otomatis v
 filter (Step 3), kebijakan hapus user yang aman (Step 4), konsistensi `CancellationToken` + DI
 password hashing (Step 5), semantik 400 vs 404 (task lanjutan), standarisasi response
 controller via extension method `Reply`, dan penyatuan validasi wajib Name/Email/Password.
-Test suite saat ini **161 test hijau**.
+Test suite saat ini **160 test hijau**.
 
 ### What I Have Practiced
 
@@ -927,7 +932,7 @@ Selain itu, baru dipraktikkan: **custom exception + pemetaan exception berbasis 
 dengan Restrict + guard di service + migration FK** (Step 4), **mendaftarkan service
 framework (`IPasswordHasher<T>`) di DI + meneruskan `CancellationToken` end-to-end** (Step 5),
 serta **semantik 400 vs 404 + extension method untuk standarisasi response controller**,
-dan **menyatukan validasi wajib ke helper bersama (`UserValidation`)**.
+dan **menyatukan validasi wajib ke validator generik berbasis DataAnnotations (`RequestValidation`)**.
 
 ### Biggest Gaps
 

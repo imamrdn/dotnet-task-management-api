@@ -118,8 +118,7 @@ public class UserService : IUserService
 
     public async Task<UserResponse> CreateUserAsync(CreateUserRequest request, CancellationToken cancellationToken = default)
     {
-        UserValidation.RequireNameAndEmail(request.Name, request.Email);
-        UserValidation.RequirePassword(request.Password);
+        RequestValidation.EnsureValid(request);
 
         var emailExists = await _dbContext.Users.AnyAsync(user => user.Email == request.Email, cancellationToken);
         if (emailExists)
@@ -144,7 +143,7 @@ public class UserService : IUserService
 
     public async Task<UserResponse?> UpdateUserAsync(int id, UpdateUserRequest request, CancellationToken cancellationToken = default)
     {
-        UserValidation.RequireNameAndEmail(request.Name, request.Email);
+        RequestValidation.EnsureValid(request);
 
         var user = await _dbContext.Users.FindAsync([id], cancellationToken);
         if (user is null)

@@ -30,8 +30,7 @@ public class AuthService
 
     public async Task RegisterAsync(RegisterRequest request)
     {
-        UserValidation.RequireNameAndEmail(request.Name, request.Email);
-        UserValidation.RequirePassword(request.Password);
+        RequestValidation.EnsureValid(request);
 
         var emailExists = await _dbContext.Users.AnyAsync(u => u.Email == request.Email);
 
@@ -56,8 +55,7 @@ public class AuthService
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request)
     {
-        UserValidation.RequireEmail(request.Email);
-        UserValidation.RequirePassword(request.Password);
+        RequestValidation.EnsureValid(request);
 
         var user = await _dbContext.Users
             .FirstOrDefaultAsync(u => u.Email == request.Email);

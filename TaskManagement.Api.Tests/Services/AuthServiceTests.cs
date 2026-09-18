@@ -130,6 +130,20 @@ public class AuthServiceTests
             service.RefreshAsync(new RefreshTokenRequest("invalid-refresh-token")));
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task RefreshAsync_MissingRefreshToken_ThrowsArgumentException(string refreshToken)
+    {
+        await using var context = TestDbContextFactory.Create();
+        var service = CreateService(context);
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.RefreshAsync(new RefreshTokenRequest(refreshToken)));
+
+        Assert.Equal("Refresh token is required", exception.Message);
+    }
+
     [Fact]
     public async Task LogoutAsync_RevokesRefreshToken()
     {
@@ -146,6 +160,31 @@ public class AuthServiceTests
         Assert.NotNull(Assert.Single(context.RefreshTokens).RevokedAt);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             service.RefreshAsync(new RefreshTokenRequest(login.RefreshToken)));
+    }
+
+    [Fact]
+    public async Task LogoutAsync_UnknownRefreshToken_DoesNothing()
+    {
+        await using var context = TestDbContextFactory.Create();
+        var service = CreateService(context);
+
+        await service.LogoutAsync(new LogoutRequest("unknown-refresh-token"));
+
+        Assert.Empty(context.RefreshTokens);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task LogoutAsync_MissingRefreshToken_ThrowsArgumentException(string refreshToken)
+    {
+        await using var context = TestDbContextFactory.Create();
+        var service = CreateService(context);
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.LogoutAsync(new LogoutRequest(refreshToken)));
+
+        Assert.Equal("Refresh token is required", exception.Message);
     }
 
     [Theory]

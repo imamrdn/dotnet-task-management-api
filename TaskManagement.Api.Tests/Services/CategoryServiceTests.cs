@@ -25,6 +25,22 @@ public class CategoryServiceTests
     }
 
     [Fact]
+    public async Task GetCategoryByIdAsync_ReturnsCategoryOrNull()
+    {
+        await using var context = TestDbContextFactory.Create();
+        context.Categories.Add(new Category { Id = 1, Name = "Backend" });
+        await context.SaveChangesAsync();
+        var service = CreateService(context);
+
+        var found = await service.GetCategoryByIdAsync(1);
+        var missing = await service.GetCategoryByIdAsync(99);
+
+        Assert.Equal("Backend", found!.Name);
+        Assert.Equal(1, found.Id);
+        Assert.Null(missing);
+    }
+
+    [Fact]
     public async Task CreateCategoryAsync_ValidatesAndCreatesCategory()
     {
         await using var context = TestDbContextFactory.Create();

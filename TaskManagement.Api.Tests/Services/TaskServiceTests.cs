@@ -281,6 +281,18 @@ public class TaskServiceTests
     }
 
     [Fact]
+    public async Task AssignTaskCategoriesAsync_MissingOrNotOwnedTask_ReturnsNull()
+    {
+        await using var context = TestDbContextFactory.Create();
+        context.Tasks.Add(new TaskItem { Id = 1, UserId = 1, Title = "Task" });
+        await context.SaveChangesAsync();
+        var service = CreateService(context);
+
+        Assert.Null(await service.AssignTaskCategoriesAsync(1, 99, new AssignTaskCategoriesRequest([1])));
+        Assert.Null(await service.AssignTaskCategoriesAsync(2, 1, new AssignTaskCategoriesRequest([1])));
+    }
+
+    [Fact]
     public async Task DeleteTaskAsync_DeletesOwnedTaskOnly()
     {
         await using var context = TestDbContextFactory.Create();

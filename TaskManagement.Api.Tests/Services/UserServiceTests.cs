@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using TaskManagement.Api.Data;
@@ -196,6 +197,36 @@ public class UserServiceTests
 
         Assert.True(await service.DeleteUserAsync(1));
         Assert.False(await service.DeleteUserAsync(99));
+    }
+
+    [Fact]
+    public async Task DeleteUserAsync_UserWithActiveTasks_ThrowsAndKeepsUserAndTasks()
+    {
+        await using var context = TestDbContextFactory.Create();
+        context.Users.Add(new User { Id = 1, Name = "Owner", Email = "owner@mail.com" });
+        context.Tasks.AddRange(
+            new TaskItem { Id = 1, UserId = 1, Title = "Active" },
+            new TaskItem { Id = 2, UserId = 1, Title = "Deleted", IsDeleted = true });
+        await context.SaveChangesAsync();
+        var service = CreateService(context);
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() => service.DeleteUserAsync(1));
+
+        Assert.Equal("User cannot be deleted because the user has tasks", exception.Message);
+        Assert.NotNull(await context.Users.FindAsync(1));
+        Assert.Equal(2, await context.Tasks.IgnoreQueryFilters().CountAsync());
+    }
+
+    [Fact]
+    public async Task DeleteUserAsync_UserWithOnlySoftDeletedTasks_ThrowsArgumentException()
+    {
+        await using var context = TestDbContextFactory.Create();
+        context.Users.Add(new User { Id = 1 });
+        context.Tasks.Add(new TaskItem { Id = 1, UserId = 1, Title = "Deleted", IsDeleted = true });
+        await context.SaveChangesAsync();
+
+        await Assert.ThrowsAsync<ArgumentException>(() => CreateService(context).DeleteUserAsync(1));
+        Assert.NotNull(await context.Users.FindAsync(1));
     }
 
     [Fact]

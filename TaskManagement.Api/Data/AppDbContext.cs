@@ -46,7 +46,8 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<TaskItem>()
             .HasOne(t => t.User)
             .WithMany(u => u.Tasks)
-            .HasForeignKey(t => t.UserId);
+            .HasForeignKey(t => t.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         // Global query filter: soft-deleted tasks are excluded automatically from every query.
         // This replaces the manual .WhereActive() calls that were easy to forget.

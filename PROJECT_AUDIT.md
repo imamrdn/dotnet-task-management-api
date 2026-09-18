@@ -328,7 +328,9 @@ lalu lempar `ArgumentException`). Untuk list kosong, tentukan perilakunya dengan
 
 ---
 
-#### 3. Hapus user menghapus task miliknya secara permanen (hard delete), tidak konsisten dengan soft delete
+#### 3. Hapus user menghapus task miliknya secara permanen (hard delete), tidak konsisten dengan soft delete — ✅ SUDAH DIPERBAIKI
+
+> **Status: Fixed.** Lihat catatan di akhir item ini untuk ringkasan perbaikannya.
 
 **Issue:**
 `UserService.DeleteUserAsync` memakai `_dbContext.Users.Remove(user)` (hard delete).
@@ -355,6 +357,21 @@ Tentukan kebijakan dengan sadar. Pilihan sederhana: ikuti model soft delete (tam
 `IsDeleted`/`DeletedAt` pada `User` dan filter dengan `WhereActive`), atau minimal
 ubah `DeleteBehavior` relasi agar tidak otomatis cascade, lalu tangani task milik user secara eksplisit.
 Ini keputusan desain, bukan sekadar bug — tapi harus disadari.
+
+**Resolution (sudah dikerjakan — opsi "larang hapus bila masih punya task"):**
+- `UserService.DeleteUserAsync` kini menolak penghapusan bila user masih punya task **apa pun**
+  (aktif maupun soft-deleted) dengan `ArgumentException("User cannot be deleted because the user
+  has tasks")` → **HTTP 400** lewat `ApiExceptionHandler`. Pengecekan memakai
+  `IgnoreQueryFilters()` agar baris soft-deleted ikut dihitung.
+- Relasi `User → Tasks` di `AppDbContext` diubah dari Cascade menjadi
+  `DeleteBehavior.Restrict`, plus migration `RestrictUserTaskDelete`, sebagai backstop di level
+  database bila ada jalur lain yang mencoba menghapus user bertask.
+- Soft delete penuh pada `User` sengaja **tidak** dipilih karena efek ikutannya besar untuk
+  level ini (konflik unique index `Email`, refresh token user terhapus yang masih valid,
+  `FindAsync` yang mengabaikan query filter). Kebijakan "tolak bila masih punya task" menutup
+  risiko kehilangan data dengan perubahan minimal.
+- Diuji di `UserServiceTests` (task aktif → tolak; hanya soft-deleted → tolak; user & task tetap ada)
+  dan `ApiIntegrationTests` (hapus user bertask → 400; hapus user tanpa task → 204).
 
 ---
 
@@ -547,9 +564,9 @@ Berdasarkan project, konsep fundamental yang **paling relevan** untuk dipelajari
    Sudah dipraktikkan lewat Step 2 (DataAnnotations lanjutan + validasi query parameter + batas
    pagination). Langkah lanjutan: konsistenkan validasi untuk semua endpoint baru ke depan.
 
-5. **Transaksi & konsistensi data (EF Core transactions).**
-   Operasi multi-langkah (mis. menghapus user + task-nya, atau assign kategori) perlu dipahami
-   dampak cascade-nya. `DatabaseSeeder.RefreshAsync` sudah memakai transaction — bisa jadi contoh belajar.
+5. **Transaksi & konsistensi data (EF Core transactions + `DeleteBehavior`).**
+   Sudah dipraktikkan lewat Step 4 (FK Cascade → Restrict + guard di service + migration).
+   `DatabaseSeeder.RefreshAsync` tetap menjadi contoh transaction yang baik untuk dipelajari.
 
 6. **Async & CancellationToken secara konsisten.**
    `UserService` belum menerima `CancellationToken`, berbeda dengan service lain.
@@ -676,7 +693,11 @@ Ini kesempatan belajar fitur EF Core yang penting dan mengurangi risiko bug di m
 
 ---
 
-### Step 4 — Putuskan kebijakan hapus user & relasinya (cascade vs soft delete)
+### Step 4 — Putuskan kebijakan hapus user & relasinya (cascade vs soft delete) — ✅ SELESAI
+
+> **Status: DONE.** Step ini sudah dikerjakan dengan opsi **"larang hapus bila masih punya task"**.
+> Semua Definition of Done di bawah sudah terpenuhi dan `dotnet test` hijau (140 test).
+> Perubahan skema (FK Cascade → Restrict) dituangkan dalam migration `RestrictUserTaskDelete`.
 
 **Goal**
 Menghilangkan risiko kehilangan data permanen saat user dihapus; menyelaraskan dengan model soft delete.
@@ -687,19 +708,28 @@ Ini juga melatih pemahaman relasi & `DeleteBehavior` di EF Core.
 
 **Concepts Learned**
 - Relasi & `DeleteBehavior` (Cascade/Restrict/SetNull)
-- Soft delete pada entity induk
+- Soft delete pada entity induk (dipelajari, lalu sengaja tidak dipilih — lihat alasan di bawah)
 - Konsekuensi operasi delete berantai
+- Membuat EF Core migration untuk perubahan perilaku FK
 
 **Likely Files**
-`TaskManagement.Api/Models/User.cs`,
+`TaskManagement.Api/Models/User.cs` (tidak diubah — sengaja),
 `TaskManagement.Api/Data/AppDbContext.cs`,
 `TaskManagement.Api/Services/UserService.cs`,
-`TaskManagement.Api/Migrations/` (jika skema berubah)
+`TaskManagement.Api/Migrations/20260918161716_RestrictUserTaskDelete.cs` (baru),
+`TaskManagement.Api.Tests/Services/UserServiceTests.cs`,
+`TaskManagement.Api.Tests/Integration/ApiIntegrationTests.cs`
 
 **Definition of Done**
-- [ ] Kebijakan tertulis jelas (soft delete user atau larang hapus jika masih punya task).
-- [ ] Menghapus user tidak lagi menghapus task secara tak terduga (atau perilakunya sengaja dipilih & diuji).
-- [ ] Test menutup skenario menghapus user yang punya task.
+- [x] Kebijakan tertulis jelas: **tolak hapus user yang masih punya task** (400), FK jadi Restrict.
+- [x] Menghapus user tidak lagi menghapus task secara tak terduga.
+- [x] Test menutup skenario menghapus user yang punya task (unit + integration).
+
+**Alasan tidak memilih soft delete user:** efek ikutannya besar untuk level ini — konflik unique
+index `Email` (email user terhapus tidak bisa dipakai lagi tanpa logika khusus), refresh token milik
+user terhapus yang tetap valid, serta `FindAsync` yang mengabaikan global query filter sehingga
+`GetUserByIdAsync`/`UpdateUserAsync`/`DeleteUserAsync` harus ditulis ulang. Kebijakan penolakan
+menutup risiko kehilangan data dengan perubahan minimal.
 
 **Difficulty:** Medium
 
@@ -763,95 +793,93 @@ Terakhir, supaya semua perbaikan "terkunci" oleh test. Ini melatih disiplin test
 
 ## 🎯 NEXT TASK
 
-> Catatan: task sebelumnya (Step 1 — pemetaan exception, Step 2 — validasi, Step 3 — global query
-> filter soft delete) **sudah selesai**. Berikut adalah task berikutnya yang paling masuk akal.
+> Catatan: Step 1 (pemetaan exception), Step 2 (validasi), Step 3 (global query filter),
+> dan Step 4 (kebijakan hapus user) **sudah selesai**. Berikut task berikutnya.
 
-# Putuskan kebijakan hapus user & relasinya (cascade vs soft delete)
+# Konsistenkan `CancellationToken` & rapikan duplikasi password hashing
 
 ## Objective
 
-Menghilangkan risiko kehilangan data permanen saat user dihapus, dan menyelaraskan perilaku
-`DELETE /api/users/{id}` dengan model **soft delete** yang sudah dipakai untuk task.
-Saat ini `UserService.DeleteUserAsync` memakai `_dbContext.Users.Remove(user)` (hard delete),
-dan relasi `User → Tasks` memakai cascade delete, sehingga menghapus user ikut menghapus
-**semua task miliknya secara permanen**.
+Dua perapian kecil yang saling terkait di layer service:
+
+1. Menambah `CancellationToken` di semua method `IUserService`/`UserService` dan meneruskannya
+   ke semua pemanggilan EF Core async — menyamakan dengan `TaskService`/`CategoryService`
+   yang sudah menerimanya.
+2. Menghapus duplikasi `new PasswordHasher<User>()` di `AuthService`, `UserService`, dan
+   `UserSeeder` dengan mendaftarkan `IPasswordHasher<User>` di DI container dan meng-inject-nya.
 
 ## Why This Task
 
-- Ini risiko **kehilangan data** nyata: satu request `DELETE /api/users/{id}` menghapus user
-  **dan** semua task-nya tanpa jejak (tidak ada `DeletedAt`), padahal task sendiri memakai
-  model soft delete (`TaskItem.IsDeleted`). Jadi ada inkonsistensi kebijakan.
-- Bergantung pada Step 3: setelah soft delete konsisten lewat global query filter, kebijakan
-  untuk user bisa dibuat selaras dan diuji dengan cara yang sama.
-- Melatih pemahaman relasi & `DeleteBehavior` di EF Core, serta konsekuensi operasi delete berantai —
-  konsep fundamental yang sering jadi sumber bug di aplikasi nyata.
+- Setelah alur utama stabil (Step 1–4), ini saat yang tepat untuk perapian berkualitas:
+  terukur, tidak berisiko besar, dan melatih dua fundamental (async + DI) sekaligus.
+- `CancellationToken` yang tidak diteruskan berarti pembatalan request klien tidak sampai
+  ke query database user — inkonsistensi yang mudah diperbaiki sekarang.
+- `new PasswordHasher<User>()` yang tersebar di 3+ tempat berarti penggantian algoritma
+  hashing di masa depan harus diubah di banyak tempat (pelanggaran DRY).
 
 ## Files To Study First
 
-1. `TaskManagement.Api/Services/UserService.cs` — method `DeleteUserAsync` (hard delete saat ini).
-2. `TaskManagement.Api/Data/AppDbContext.cs` — relasi `User → Tasks` dan global query filter
-   yang baru ditambahkan (Step 3).
-3. `TaskManagement.Api/Models/User.cs` — entity user (belum punya `IsDeleted`/`DeletedAt`).
-4. `TaskManagement.Api/Models/TaskItem.cs` — bandingkan pola soft delete task.
-5. `TaskManagement.Api/Migrations/20260912143356_AddUserTaskRelationship.cs` — bukti `onDelete: Cascade`.
-6. `TaskManagement.Api.Tests/Services/UserServiceTests.cs` — test delete user yang sudah ada.
+1. `TaskManagement.Api/Services/ITaskService.cs` + `TaskService.cs` — contoh pola
+   `CancellationToken` yang sudah benar (jadikan acuan).
+2. `TaskManagement.Api/Services/IUserService.cs` + `UserService.cs` — yang akan diubah.
+3. `TaskManagement.Api/Controllers/UsersController.cs` — pemanggil `IUserService`
+   (perlu meneruskan token; controller punya `HttpContext.RequestAborted` bila mau eksplisit,
+   atau biarkan default).
+4. `TaskManagement.Api/Program.cs` — tempat mendaftarkan `IPasswordHasher<User>`.
+5. `TaskManagement.Api/Services/AuthService.cs` + `Data/Seeders/UserSeeder.cs` — pemakai
+   `new PasswordHasher<User>()` yang akan diganti inject.
+6. Test yang memanggil `UserService` langsung (`UserServiceTests`, `UsersControllerTests`)
+   — perlu dicek apakah perlu penyesuaian tanda tangan.
 
 ## Concepts To Understand
 
-- **EF Core `DeleteBehavior`**: `Cascade`, `Restrict`, `SetNull`, `ClientCascade`.
-- Konsep **soft delete pada entity induk** (user) dan bagaimana ia berinteraksi dengan
-  global query filter untuk task.
-- Perbedaan **hard delete** vs **soft delete**, dan kapan masing-masing pantas dipakai.
-- Dampak perubahan relasi terhadap **migration** (kali ini kemungkinan perlu migration karena
-  skema relasi/kolom berubah).
+- **`CancellationToken` di ASP.NET Core**: bagaimana pembatalan request mengalir dari
+  controller → service → EF Core, dan kenapa `...Async(..., cancellationToken)` penting.
+- **Mendaftarkan service framework di DI**: `builder.Services.AddScoped<IPasswordHasher<User>,
+  PasswordHasher<User>>()` dan constructor injection.
+- Prinsip **DRY** (Don't Repeat Yourself) untuk logika infrastruktur seperti hashing.
 
 ## Implementation Direction
 
 Jangan langsung menulis kode lengkap — lakukan bertahap:
 
-1. **Pelajari** dulu alur `DELETE /api/users/{id}`: dari `UsersController.DeleteUser` →
-   `UserService.DeleteUserAsync` → `Remove` + `SaveChangesAsync`, lalu pahami efek cascade-nya.
-2. **Putuskan kebijakan** dan tulis alasannya. Dua opsi yang masuk akal:
-   - (a) **Soft delete user**: tambahkan `IsDeleted`/`DeletedAt` pada `User`, ubah `DeleteUserAsync`
-     menjadi menandai terhapus, dan tambahkan global query filter untuk `User` (plus penyesuaian
-     filter task agar task milik user terhapus ikut tersembunyi).
-   - (b) **Larang hapus jika masih punya task aktif**: kembalikan error (mis. 400/409) saat user
-     masih memiliki task, tanpa mengubah skema.
-   Pilih salah satu — jangan campur setengah-setengah.
-3. **Terapkan** kebijakan tadi di `UserService` (dan `AppDbContext` bila skema berubah).
-4. **Handle** konsistensi: pastikan menghapus user tidak lagi menghapus task secara tak terduga,
-   dan endpoint tetap mengembalikan status code yang benar.
-5. **Buat migration** jika skema berubah (mis. kolom `IsDeleted` pada `users` atau perubahan
-   `DeleteBehavior`), lalu **test** semua skenario (lihat How To Verify).
+1. **Pelajari** bagaimana `TaskService` menerima `CancellationToken cancellationToken = default`
+   dan meneruskannya ke `CountAsync`/`ToListAsync`/`SaveChangesAsync`. Perhatikan bahwa parameter
+   opsional (`= default`) membuat pemanggil lama tetap kompilasi.
+2. **Tambahkan** `CancellationToken cancellationToken = default` ke semua method
+   `IUserService`/`UserService`, teruskan ke setiap `...Async`, dan teruskan dari
+   `UsersController` (cukup teruskan parameter `cancellationToken` yang disediakan framework
+   di action, atau biarkan default).
+3. **Daftarkan** `IPasswordHasher<User>` di `Program.cs`, lalu ganti semua
+   `new PasswordHasher<User>()` dengan field yang di-inject via constructor di
+   `AuthService`, `UserService`, dan `UserSeeder` (jangan lupa daftarkan juga bila seeder
+   di-resolve via DI — cek `Program.cs` baris seeder).
+4. **Handle** test yang terdampak: pemanggil dengan positional argument tetap kompilasi
+   karena parameter baru opsional; yang memakai Moq `Setup` mungkin perlu
+   `It.IsAny<CancellationToken>()`.
+5. **Test**: jalankan `dotnet test` — semua harus hijau tanpa perubahan perilaku API.
 
 ## Expected Behavior
 
-Setelah selesai (asumsi memilih soft delete user):
+Setelah selesai:
 
-- `DELETE /api/users/{id}` → user tidak lagi hilang permanen; task-nya tidak terhapus permanen.
-- `GET /api/users` dan `GET /api/users/{id}` tidak menampilkan user yang sudah dihapus.
-- Perilaku endpoint task tetap konsisten (task milik user terhapus tidak muncul di daftar umum).
-- Semua test lama tetap hijau, plus test baru untuk kebijakan yang dipilih.
+- Perilaku API **tidak berubah sama sekali** dari sudut pandang klien (refactor murni).
+- Pembatalan request diteruskan sampai ke query database untuk endpoint `/api/users`.
+- Tidak ada lagi `new PasswordHasher<User>()` di codebase (cek dengan pencarian).
 
 ## How To Verify
 
-Jalankan API, login sebagai admin, lalu uji:
+1. **Pencarian kode:**
+   - Cari `new PasswordHasher` di seluruh `*.cs` → tidak ada lagi hasil di `TaskManagement.Api/`.
+   - Cari method `UserService` tanpa `CancellationToken` → tidak ada lagi.
 
-1. **Hapus user yang punya task:**
-   - Buat user baru + task untuknya, lalu `DELETE /api/users/{id}`.
-   - Harapkan: sesuai kebijakan — user (dan task-nya) tidak hilang permanen, atau request ditolak
-     dengan pesan yang jelas. **Bukan** lagi menghapus semua task tanpa jejak.
+2. **Automated test:**
+   - `dotnet test TaskManagement.slnx` → semua hijau.
+   - Perilaku login/register (hashing) tetap benar — dibuktikan test `AuthServiceTests`
+     dan `UserServiceTests` yang sudah ada.
 
-2. **User terhapus tidak muncul:**
-   - `GET /api/users` → user yang dihapus tidak ada.
-
-3. **Database tetap sehat:**
-   - Pastikan tidak ada foreign key error / data yatim (orphan) setelah operasi delete.
-
-4. **Automated test:**
-   - Tambahkan test untuk kebijakan yang dipilih (mis. user yang dihapus tidak muncul;
-     task miliknya tidak hilang permanen; atau request ditolak jika masih ada task).
-   - `dotnet test TaskManagement.slnx` harus hijau.
+3. **Manual (opsional):**
+   - Register + login via Bruno tetap berhasil (membuktikan hashing via DI bekerja).
 
 ---
 
@@ -860,47 +888,49 @@ Jalankan API, login sebagai admin, lalu uji:
 ### Current State
 
 Project ini jauh melampaui "beginner biasa": sebuah **ASP.NET Core Web API (.NET 10)** yang lengkap dengan
-PostgreSQL + EF Core (25 migration), JWT authentication **plus refresh token rotation**, role-based
+PostgreSQL + EF Core (26 migration), JWT authentication **plus refresh token rotation**, role-based
 authorization, soft delete task, relasi many-to-many (task↔category), profil user one-to-one,
 demo seeding, health check, OpenAPI, CORS per-environment, CI GitHub Actions, serta **test unit dan
 integration yang luas**. Arsitekturnya rapi: **Controller → Service → DbContext → PostgreSQL**, tanpa
-over-engineering. Tidak ditemukan TODO/FIXME. Tiga area sudah dibereskan: bug kategori duplikat → 500
-(Step 1), validasi yang hilang (Step 2), dan soft delete kini otomatis lewat EF Core global query
-filter (Step 3). Beberapa area lain masih perlu dirapikan (kebijakan hapus user, konsistensi async,
-duplikasi password hashing). Test suite saat ini **136 test hijau**.
+over-engineering. Tidak ditemukan TODO/FIXME. Empat area sudah dibereskan: bug kategori duplikat → 500
+(Step 1), validasi yang hilang (Step 2), soft delete otomatis via global query filter (Step 3),
+dan kebijakan hapus user yang aman (Step 4). Tersisa perapian kecil (konsistensi async, duplikasi
+password hashing). Test suite saat ini **140 test hijau**.
 
 ### What I Have Practiced
 
 Yang sudah jelas terpakai: C# modern (record, pattern matching, nullable), OOP & interface,
 Dependency Injection (constructor injection + lifetime), ASP.NET Core (middleware pipeline, controllers,
 health checks, OpenAPI), REST API, EF Core (migrations, relasi, index, projection, soft delete,
-**global query filters**), LINQ, DTO terpisah dari entity, async/await, logging terstruktur,
-configuration per-environment, authentication (JWT + refresh token), authorization (policy & role),
-unit testing (xUnit + Moq), dan integration testing (WebApplicationFactory + PostgreSQL nyata).
+**global query filters**, **`DeleteBehavior`**), LINQ, DTO terpisah dari entity, async/await,
+logging terstruktur, configuration per-environment, authentication (JWT + refresh token),
+authorization (policy & role), unit testing (xUnit + Moq), dan integration testing
+(WebApplicationFactory + PostgreSQL nyata).
 Selain itu, baru dipraktikkan: **custom exception + pemetaan exception berbasis tipe** (Step 1),
-**validasi DataAnnotations lanjutan & validasi query parameter** (Step 2), serta
-**EF Core global query filter untuk soft delete** (Step 3).
+**validasi DataAnnotations lanjutan & validasi query parameter** (Step 2),
+**EF Core global query filter untuk soft delete** (Step 3), serta **kebijakan delete yang aman
+dengan Restrict + guard di service + migration FK** (Step 4).
 
 ### Biggest Gaps
 
 1. **Semantik HTTP/REST** — id tidak valid masih mengembalikan 404 (seharusnya 400).
-2. **Kebijakan hapus user** — hard delete dengan cascade ke task, tidak konsisten dengan soft delete task.
-3. **Konsistensi async** — `UserService` belum menerima `CancellationToken` seperti service lain.
-4. **Duplikasi password hashing** — `PasswordHasher<User>` dibuat manual (`new`) di beberapa tempat.
-5. **Kode tak terpakai** — `Extensions/TaskQueryExtensions.cs` (`WhereActive()`) kini tidak dipakai lagi
-   setelah Step 3; kandidat dibersihkan.
+2. **Konsistensi async** — `UserService` belum menerima `CancellationToken` seperti service lain.
+3. **Duplikasi password hashing** — `PasswordHasher<User>` dibuat manual (`new`) di beberapa tempat.
+4. **Keputusan desain lanjutan** — mis. proteksi hapus akun demo/admin (saat ini masih bisa dihapus
+   bila tidak punya task); sengaja di luar cakupan Step 4.
 
 ### Immediate Priority
 
-Memutuskan **kebijakan hapus user & relasinya**, karena saat ini `DELETE /api/users/{id}` menghapus
-user beserta seluruh task-nya secara permanen (cascade hard delete) — risiko kehilangan data dan
-tidak konsisten dengan soft delete task.
+Merapikan **konsistensi `CancellationToken` di `UserService`** dan **menghapus duplikasi
+`PasswordHasher`** lewat DI — dua perapian kecil yang melatih fundamental async + DI
+setelah alur utama stabil.
 
 ### Next Task
 
-**Putuskan kebijakan hapus user & relasinya (cascade vs soft delete)** (lihat bagian 🎯 NEXT TASK di atas).
+**Konsistenkan `CancellationToken` & rapikan duplikasi password hashing**
+(lihat bagian 🎯 NEXT TASK di atas).
 
 ### After That
 
-Setelah NEXT TASK selesai, lanjutkan ke **Step 5** (rapikan `CancellationToken` + duplikasi password
-hashing), bersihkan kode tak terpakai (`WhereActive()`), dan tutup dengan **Step 6** (regression test).
+Setelah NEXT TASK selesai, tutup dengan **Step 6** (regression test & coverage check),
+lalu pertimbangkan perapian semantik HTTP (400 vs 404 untuk id tidak valid) sebagai latihan lanjutan.

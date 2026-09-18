@@ -258,6 +258,40 @@ public class ApiIntegrationTests : IClassFixture<PostgresWebApplicationFactory>
     }
 
     [Fact]
+    public async Task DeleteUser_WithTasks_ReturnsBadRequestAndKeepsUserAndTasks()
+    {
+        using var adminClient = await CreateAuthenticatedClientAsync("admin@mail.com");
+
+        // Seeded regular user (id 2) owns tasks, so the delete must be rejected.
+        var response = await adminClient.DeleteAsync("/api/users/2");
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<object>>();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.False(body!.Success);
+        Assert.Equal("User cannot be deleted because the user has tasks", body.Message);
+
+        var getResponse = await adminClient.GetAsync("/api/users/2");
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeleteUser_WithoutTasks_ReturnsNoContent()
+    {
+        using var adminClient = await CreateAuthenticatedClientAsync("admin@mail.com");
+
+        var createResponse = await adminClient.PostAsJsonAsync(
+            "/api/users", new CreateUserRequest("Deletable User", "deletable@mail.com", "secret123"));
+        var created = (await createResponse.Content.ReadFromJsonAsync<ApiResponse<UserResponse>>())!.Data!;
+
+        var deleteResponse = await adminClient.DeleteAsync($"/api/users/{created.Id}");
+        var getResponse = await adminClient.GetAsync($"/api/users/{created.Id}");
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, getResponse.StatusCode);
+    }
+
+    [Fact]
     public async Task UserProfileEndpoint_EnforcesAdminRoleAndPersistsOneToOneProfile()
     {
         using var userClient = await CreateAuthenticatedClientAsync("user@mail.com");

@@ -184,6 +184,18 @@ public class UserService : IUserService
             return false;
         }
 
+        // Never cascade-delete tasks implicitly: deleting a user must not wipe out
+        // task rows silently. IgnoreQueryFilters is deliberate here so that even
+        // already soft-deleted tasks block the delete (the Restrict FK below would
+        // reject them at the database level otherwise).
+        var hasTasks = await _dbContext.Tasks
+            .IgnoreQueryFilters()
+            .AnyAsync(task => task.UserId == id);
+        if (hasTasks)
+        {
+            throw new ArgumentException("User cannot be deleted because the user has tasks");
+        }
+
         _dbContext.Users.Remove(user);
         await _dbContext.SaveChangesAsync();
         _logger.LogInformation("User {UserId} deleted", id);
